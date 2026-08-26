@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cold-start splash matches the amber launcher field so first frame is seamless. -->
+    <style name="Theme.PPNAMStation5AA" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/station_field</item>
+        <item name="android:colorBackground">@color/station_field</item>
+        <item name="android:statusBarColor">@color/station_field</item>
+        <item name="android:navigationBarColor">@color/station_field</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
