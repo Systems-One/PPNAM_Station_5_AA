@@ -1,5 +1,64 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- App 5 amber field colour from the PPNAM icon pack. -->
+    <!-- Base / Surface Colours - matches Station 2 AA's palette (ui/theme/Color.kt),
+         which itself matches the Windows Station 2 WPF app. Ported from Station 1 AA. -->
+    <color name="window_background">#07101A</color>
+    <color name="card_background">#102233</color>
+    <color name="card_background_alt">#14293D</color>
+    <color name="panel_background">#0A1826</color>
+    <color name="panel_background_alt">#0E2135</color>
+    <color name="info_banner">#122A4C</color>
+
+    <!-- Border Colours -->
+    <color name="border_primary">#25384C</color>
+    <color name="border_soft">#1C2C3E</color>
+
+    <!-- Text Colours -->
+    <color name="text_primary">#EDF4FB</color>
+    <color name="text_muted">#9BAEC0</color>
+
+    <!-- App identity - PPNAM icon pack app 5 (amber): field and light tint.
+         The field colour doubles as the primary action colour so each station
+         app carries its launcher identity through its UI. -->
     <color name="station_field">#FFA85F14</color>
+    <color name="brand_field">@color/station_field</color>
+    <color name="brand_tint">#E6C99F</color>
+
+    <!-- Semantic / Accent Colours -->
+    <color name="primary_action">@color/brand_field</color>
+    <color name="accent_action">#25C7DA</color>
+    <color name="success">#2BC36D</color>
+    <color name="warning">#F0A13A</color>
+    <color name="danger">#E25C5C</color>
+    <color name="info">#2E77F5</color>
+
+    <!-- Tinted Background Colours -->
+    <color name="light_blue">#163256</color>
+    <color name="light_green">#123825</color>
+    <color name="light_amber">#453014</color>
+    <color name="light_red">#452024</color>
+    <color name="selected_item">#1A3252</color>
+
+    <!-- Tile Colours (Dashboard) -->
+    <color name="tile_purple">#8A63E8</color>
+    <color name="tile_blue">#2E77F5</color>
+    <color name="tile_amber">#F0A13A</color>
+    <color name="tile_teal">#25C7DA</color>
+
+    <!-- Status Colours -->
+    <color name="status_inactive">#56708A</color>
+
+    <!-- Connection pill colours - same tokens as success/warning/danger above -->
+    <color name="pill_connected">@color/success</color>
+    <color name="pill_warning">@color/warning</color>
+    <color name="pill_offline">@color/danger</color>
+
+    <!-- Legacy compatibility -->
+    <color name="bg_dark">@color/window_background</color>
+    <color name="surface_dark">@color/card_background</color>
+    <color name="surface_dark_2">@color/card_background_alt</color>
+    <color name="text_primary_dark">@color/text_primary</color>
+    <color name="text_secondary_dark">@color/text_muted</color>
+    <color name="accent_red">@color/danger</color>
+    <color name="outline_dark">@color/border_primary</color>
 </resources>

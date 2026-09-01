@@ -1,4 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Station 5</string>
+    <string name="status_online">Online</string>
+    <string name="status_offline">Offline</string>
+    <string name="status_connecting">Connecting</string>
+    <string name="error_fill_all_fields">Please fill in all fields</string>
+
+    <!-- Dashboard: Station 5 defines no workflow tabs yet (fail-closed allowedTabs gating) -->
+    <string name="no_workflows_title">No workflows</string>
+    <string name="no_workflows_message">No workflows are enabled for this station yet.</string>
+
+    <!-- Login / session -->
+    <string name="title_log_in">Log In</string>
+    <string name="hint_username">Username</string>
+    <string name="hint_password">Password</string>
+    <string name="btn_log_in">Log In</string>
+    <string name="label_or_scan_badge">or scan your badge</string>
+    <string name="exit_dialog_title">Close the app?</string>
+    <string name="exit_dialog_message">You\'ll leave PPNAM Station 5 and return to the home screen.</string>
+    <string name="exit_dialog_close">Close</string>
+    <string name="exit_dialog_stay">Stay</string>
+    <string name="logout_dialog_title">Log out?</string>
+    <string name="logout_dialog_message">You\'ll need to log in again to continue.</string>
+    <string name="btn_log_out">Log Out</string>
+    <string name="btn_cancel">Cancel</string>
+
+    <!-- Settings -->
+    <string name="section_diagnostics">Diagnostics</string>
+    <string name="section_configuration">Configuration</string>
+    <string name="section_broker">Broker</string>
+    <string name="hint_broker_host">Host</string>
+    <string name="hint_broker_port">Port</string>
+    <string name="label_broker_websocket">Use WebSocket</string>
+    <string name="label_broker_tls">Use TLS</string>
+    <string name="hint_broker_username">Username</string>
+    <string name="hint_broker_password">Password</string>
+    <string name="section_session">Session</string>
+    <string name="label_mqtt_broker">MQTT Broker</string>
+    <string name="label_station_row">Station 5</string>
+    <string name="label_version">Version</string>
+    <string name="label_device_id">Device ID</string>
+    <string name="label_signed_in_as">Signed in as</string>
+
+    <string name="station_offline_title">MAIN STATION OFFLINE</string>
+    <string name="station_offline_message">Please wait for the main station to reconnect...</string>
 </resources>

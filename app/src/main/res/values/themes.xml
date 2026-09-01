@@ -1,11 +1,61 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Cold-start splash matches the amber launcher field so first frame is seamless. -->
-    <style name="Theme.PPNAMStation5AA" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/station_field</item>
-        <item name="android:colorBackground">@color/station_field</item>
-        <item name="android:statusBarColor">@color/station_field</item>
-        <item name="android:navigationBarColor">@color/station_field</item>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme, ported from Station 1 AA. -->
+    <style name="Base.Theme.SysOneScanner" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Base / Surface Colours -->
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="colorSurface">@color/card_background</item>
+        <item name="colorSurfaceVariant">@color/card_background_alt</item>
+        <!-- Material3 defaults colorOnSurface(Variant) to near-black; left unset, every
+             MaterialComponents OutlinedBox field's resting hint (which resolves against
+             colorOnSurface) renders near-invisible on this dark palette. -->
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/text_muted</item>
+
+        <!-- Primary / Accent -->
+        <item name="colorPrimary">@color/primary_action</item>
+        <item name="colorSecondary">@color/accent_action</item>
+        <item name="colorError">@color/danger</item>
+
+        <!-- Text Colours -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_muted</item>
+
+        <!-- Status Bar -->
+        <item name="android:statusBarColor">@color/window_background</item>
         <item name="android:windowLightStatusBar">false</item>
+
+        <!-- Without this, every AlertDialog.Builder(context) call renders on the platform's
+             default light dialog surface while inheriting this theme's light textColorPrimary/
+             Secondary (meant for the dark app background) - text ends up near-invisible
+             (light-on-white). -->
+        <item name="alertDialogTheme">@style/AppAlertDialogTheme</item>
+        <item name="android:alertDialogTheme">@style/AppAlertDialogTheme</item>
+    </style>
+
+    <style name="Theme.SysOneScanner" parent="Base.Theme.SysOneScanner" />
+
+    <style name="AppAlertDialogTheme" parent="ThemeOverlay.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@color/card_background</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_muted</item>
+        <item name="colorAccent">@color/primary_action</item>
+    </style>
+
+    <!-- Optical sizing: large text wants slightly negative tracking (letters read too
+         far apart as they grow) - tightened here rather than left at the Material
+         default, which is tuned for body-size text, not a 20sp+ toolbar title. -->
+    <style name="TextAppearance.SysOneScanner.ToolbarTitle" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:letterSpacing">-0.015</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
+
+    <!-- Station 2's SectionLabel/DiagnosticRow label: labelSmall (11sp medium) with 0.8sp
+         tracking (0.8/11 in em), muted, uppercase. -->
+    <style name="SettingsSectionLabel">
+        <item name="android:textSize">11sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0.073</item>
+        <item name="android:textColor">@color/text_muted</item>
+        <item name="android:textAllCaps">true</item>
     </style>
 </resources>
