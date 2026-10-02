@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.SystemBarStyle
+import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -79,6 +80,10 @@ class MainActivity : AppCompatActivity() {
 
         setupDashboard()
 
+        // System Back used to finish the app silently (UI audit S5-05 / group (d)); every
+        // station confirms with the same "Close the app?" dialog as the Login screen.
+        onBackPressedDispatcher.addCallback(this) { showExitDialog() }
+
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
         MqttManager.getInstance(this).addStationStatusListener(stationStatusListener)
     }
@@ -116,6 +121,15 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    private fun showExitDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.exit_dialog_title))
+            .setMessage(getString(R.string.exit_dialog_message))
+            .setPositiveButton(getString(R.string.exit_dialog_close)) { _, _ -> finishAffinity() }
+            .setNegativeButton(getString(R.string.exit_dialog_stay), null)
             .show()
     }
 
