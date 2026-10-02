@@ -34,6 +34,14 @@
     <!-- Settings -->
     <string name="section_diagnostics">Diagnostics</string>
     <string name="section_configuration">Configuration</string>
+    <string name="pin_prompt">Enter supervisor PIN to edit settings</string>
+    <string name="hint_pin">PIN</string>
+    <string name="btn_unlock">Unlock</string>
+    <plurals name="pin_attempts_left">
+        <item quantity="one">Incorrect PIN. %1$d attempt left before lockout.</item>
+        <item quantity="other">Incorrect PIN. %1$d attempts left before lockout.</item>
+    </plurals>
+    <string name="pin_locked_out">Too many attempts. Try again in %1$d s.</string>
     <string name="section_broker">Broker</string>
     <string name="hint_broker_host">Host</string>
     <string name="hint_broker_port">Port</string>
