@@ -17,6 +17,11 @@
     <string name="hint_password">Password</string>
     <string name="btn_log_in">Log In</string>
     <string name="label_or_scan_badge">or scan your badge</string>
+    <!-- Login failures, operator-facing (UI audit group (f)); OTHER passes the station's own reason through -->
+    <string name="login_error_wrong_credentials">Incorrect username or password.</string>
+    <string name="login_error_timeout">Station 5 did not respond. Check the station and retry.</string>
+    <string name="login_error_not_connected">Not connected to the broker. Check Settings and try again.</string>
+    <string name="login_error_generic">Login failed. Try again.</string>
     <string name="exit_dialog_title">Close the app?</string>
     <string name="exit_dialog_message">You\'ll leave PPNAM Station 5 and return to the home screen.</string>
     <string name="exit_dialog_close">Close</string>
