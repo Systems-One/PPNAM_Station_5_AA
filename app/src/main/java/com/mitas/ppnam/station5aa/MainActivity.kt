@@ -60,7 +60,7 @@ class MainActivity : AppCompatActivity() {
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
             // systemBars() alone would defeat the manifest's adjustResize if a field is ever
-            // added here (UI audit group (a) sub-cause 2) â€” pad for the keyboard too.
+            // added here (UI audit group (a) sub-cause 2) — pad for the keyboard too.
             val bars = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime()
             )
