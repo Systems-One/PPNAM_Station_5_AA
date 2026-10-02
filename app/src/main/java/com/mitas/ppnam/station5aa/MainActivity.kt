@@ -9,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.mitas.ppnam.station5aa.databinding.ActivityMainBinding
 
 /**
@@ -103,7 +104,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showLogoutDialog() {
-        androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.logout_dialog_title))
             .setMessage(getString(R.string.logout_dialog_message))
             .setPositiveButton(getString(R.string.btn_log_out)) { _, _ ->

@@ -7,6 +7,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.mitas.ppnam.station5aa.databinding.ActivitySettingsBinding
 
 class SettingsActivity : AppCompatActivity() {
@@ -170,7 +171,7 @@ class SettingsActivity : AppCompatActivity() {
             if (session.role.isNotBlank()) "${session.operatorName} · ${session.role}"
             else session.operatorName
         binding.btnLogOut.setOnClickListener {
-            androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+            MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.logout_dialog_title))
                 .setMessage(getString(R.string.logout_dialog_message))
                 .setPositiveButton(getString(R.string.btn_log_out)) { _, _ ->
