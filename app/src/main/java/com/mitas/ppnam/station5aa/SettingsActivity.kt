@@ -125,29 +125,33 @@ class SettingsActivity : AppCompatActivity() {
     /**
      * The Diagnostics card, mirroring Station 2's SettingsScreen: broker link and station
      * presence are separate failures with separate remedies, and the composite pill can only
-     * name one of them at a time — so both get their own row here.
+     * name one of them at a time — so both get their own row here. The broker row uses the
+     * toolbar pill's own words (Offline / Reconnecting / Connected) so one state never has two
+     * names on the same screen (UI audit S5-08).
      */
     private fun updateDiagnostics(status: ConnectionStatus) {
         val green = getColor(R.color.success)
-        val blue = getColor(R.color.primary_action)
+        val brand = getColor(R.color.primary_action)
         val red = getColor(R.color.danger)
         val muted = getColor(R.color.text_muted)
 
         when (status) {
             ConnectionStatus.CONNECTED, ConnectionStatus.STATION_OFFLINE ->
-                binding.pillBroker.setAppearance(green, "Connected")
+                binding.pillBroker.setAppearance(green, getString(R.string.diag_broker_connected))
             ConnectionStatus.RECONNECTING ->
-                binding.pillBroker.setAppearance(blue, "Reconnecting")
+                binding.pillBroker.setAppearance(brand, getString(R.string.diag_broker_reconnecting))
             ConnectionStatus.OFFLINE ->
-                binding.pillBroker.setAppearance(red, "Disconnected")
+                binding.pillBroker.setAppearance(red, getString(R.string.diag_broker_offline))
         }
 
         // With the broker down, the retained presence value is stale rather than false — saying
         // "offline" there would blame the station for the broker's fault.
         when (status) {
-            ConnectionStatus.CONNECTED -> binding.pillStation.setAppearance(green, "Online")
-            ConnectionStatus.STATION_OFFLINE -> binding.pillStation.setAppearance(blue, "Offline")
-            else -> binding.pillStation.setAppearance(muted, "Unknown")
+            ConnectionStatus.CONNECTED ->
+                binding.pillStation.setAppearance(green, getString(R.string.diag_station_online))
+            ConnectionStatus.STATION_OFFLINE ->
+                binding.pillStation.setAppearance(brand, getString(R.string.diag_station_offline))
+            else -> binding.pillStation.setAppearance(muted, getString(R.string.diag_station_unknown))
         }
     }
 

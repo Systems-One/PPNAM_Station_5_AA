@@ -20,9 +20,12 @@
         <item name="android:textColorPrimary">@color/text_primary</item>
         <item name="android:textColorSecondary">@color/text_muted</item>
 
-        <!-- Status Bar -->
+        <!-- Status / navigation bars: both on the window colour so the bottom strip never
+             flips between black and light grey across screens (UI audit group (h)). -->
         <item name="android:statusBarColor">@color/window_background</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">@color/window_background</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
 
         <!-- Without this, every AlertDialog.Builder(context) call renders on the platform's
              default light dialog surface while inheriting this theme's light textColorPrimary/
@@ -33,6 +36,14 @@
     </style>
 
     <style name="Theme.SysOneScanner" parent="Base.Theme.SysOneScanner" />
+
+    <!-- MaterialSwitch's unchecked track/thumb read colorSurfaceContainerHighest / colorOutline,
+         which this palette never set (they fell back to M3's light defaults). Scoped to the
+         switches so nothing else picks the tokens up (UI audit S5-08). -->
+    <style name="ThemeOverlay.SysOneScanner.Switch" parent="">
+        <item name="colorSurfaceContainerHighest">@color/card_background_alt</item>
+        <item name="colorOutline">@color/text_muted</item>
+    </style>
 
     <style name="AppAlertDialogTheme" parent="ThemeOverlay.AppCompat.Dialog.Alert">
         <item name="android:windowBackground">@color/card_background</item>

@@ -1,8 +1,10 @@
 package com.mitas.ppnam.station5aa
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.WindowManager
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -52,7 +54,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding = ActivityMainBinding.inflate(layoutInflater)
-        enableEdgeToEdge()
+        // Explicit dark styles: the default auto() style enforces a light contrast scrim over
+        // the three-button nav bar, which is what made this screen's bottom strip light grey
+        // while every other screen's was the window colour (UI audit group (h)).
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+        )
         setContentView(binding.root)
         forceLightStatusBarIcons()
 
