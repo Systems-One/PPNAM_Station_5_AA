@@ -5,6 +5,7 @@
     <string name="status_offline">Offline</string>
     <string name="status_connecting">Connecting</string>
     <string name="error_fill_all_fields">Please fill in all fields</string>
+    <string name="cd_settings">Settings</string>
 
     <!-- Dashboard: Station 5 defines no workflow tabs yet (fail-closed allowedTabs gating) -->
     <string name="no_workflows_title">No workflows</string>

@@ -33,9 +33,9 @@
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Settings"
-                    android:src="@android:drawable/ic_menu_preferences"
-                    app:tint="@color/text_muted" />
+                    android:contentDescription="@string/cd_settings"
+                    android:src="@drawable/ic_settings_gear"
+                    app:tint="@color/text_primary" />
 
                 <com.mitas.ppnam.station5aa.ConnectionPillView
                     android:id="@+id/connectionPill"
