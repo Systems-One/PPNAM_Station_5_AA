@@ -240,9 +240,10 @@
                                 android:id="@+id/etPin"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:imeOptions="actionDone"
                                 android:inputType="numberPassword"
                                 android:maxLength="6"
-                                android:imeOptions="actionDone"
+                                android:singleLine="true"
                                 android:textColor="@color/text_primary_dark" />
                         </com.google.android.material.textfield.TextInputLayout>
 
@@ -323,7 +324,11 @@
                                 android:id="@+id/etBrokerHost"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:imeOptions="actionNext"
                                 android:inputType="textUri"
+                                android:nextFocusDown="@id/etBrokerPort"
+                                android:nextFocusForward="@id/etBrokerPort"
+                                android:singleLine="true"
                                 android:textColor="@color/text_primary_dark" />
                         </com.google.android.material.textfield.TextInputLayout>
 
@@ -341,7 +346,11 @@
                                 android:id="@+id/etBrokerPort"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:imeOptions="actionNext"
                                 android:inputType="number"
+                                android:nextFocusDown="@id/etBrokerUsername"
+                                android:nextFocusForward="@id/etBrokerUsername"
+                                android:singleLine="true"
                                 android:textColor="@color/text_primary_dark" />
                         </com.google.android.material.textfield.TextInputLayout>
 
@@ -379,7 +388,11 @@
                                 android:id="@+id/etBrokerUsername"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:imeOptions="actionNext"
                                 android:inputType="text"
+                                android:nextFocusDown="@id/etBrokerPassword"
+                                android:nextFocusForward="@id/etBrokerPassword"
+                                android:singleLine="true"
                                 android:textColor="@color/text_primary_dark" />
                         </com.google.android.material.textfield.TextInputLayout>
 
@@ -398,7 +411,9 @@
                                 android:id="@+id/etBrokerPassword"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:imeOptions="actionDone"
                                 android:inputType="textPassword"
+                                android:singleLine="true"
                                 android:textColor="@color/text_primary_dark" />
                         </com.google.android.material.textfield.TextInputLayout>
                     </LinearLayout>

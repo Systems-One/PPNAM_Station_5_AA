@@ -7,7 +7,6 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.view.inputmethod.EditorInfo
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -60,14 +59,7 @@ class LoginActivity : AppCompatActivity() {
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
 
         binding.btnLogin.setOnClickListener { submitCredentials() }
-        binding.etPassword.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                submitCredentials()
-                true
-            } else {
-                false
-            }
-        }
+        binding.etPassword.setOnSubmit { submitCredentials() }
 
         binding.btnSettings.setOnClickListener {
             startActivityForward(Intent(this, SettingsActivity::class.java))
