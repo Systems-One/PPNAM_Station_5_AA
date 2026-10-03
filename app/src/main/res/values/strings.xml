@@ -5,6 +5,7 @@
     <string name="status_offline">Offline</string>
     <string name="status_connecting">Connecting</string>
     <string name="error_fill_all_fields">Please fill in all fields</string>
+    <string name="cd_settings">Settings</string>
 
     <!-- Dashboard: Station 5 defines no workflow tabs yet (fail-closed allowedTabs gating) -->
     <string name="no_workflows_title">No workflows</string>
@@ -16,18 +17,32 @@
     <string name="hint_password">Password</string>
     <string name="btn_log_in">Log In</string>
     <string name="label_or_scan_badge">or scan your badge</string>
+    <!-- Login failures, operator-facing (UI audit group (f)); OTHER passes the station's own reason through -->
+    <string name="login_error_wrong_credentials">Incorrect username or password.</string>
+    <string name="login_error_timeout">Station 5 did not respond. Check the station and retry.</string>
+    <string name="login_error_not_connected">Not connected to the broker. Check Settings and try again.</string>
+    <string name="login_error_generic">Login failed. Try again.</string>
+    <string name="login_error_refused">Login was refused by the station (%1$s). Ask a supervisor.</string>
     <string name="exit_dialog_title">Close the app?</string>
     <string name="exit_dialog_message">You\'ll leave PPNAM Station 5 and return to the home screen.</string>
     <string name="exit_dialog_close">Close</string>
     <string name="exit_dialog_stay">Stay</string>
     <string name="logout_dialog_title">Log out?</string>
     <string name="logout_dialog_message">You\'ll need to log in again to continue.</string>
-    <string name="btn_log_out">Log Out</string>
+    <string name="btn_log_out">Log out</string>
     <string name="btn_cancel">Cancel</string>
 
     <!-- Settings -->
     <string name="section_diagnostics">Diagnostics</string>
     <string name="section_configuration">Configuration</string>
+    <string name="pin_prompt">Enter supervisor PIN to edit settings</string>
+    <string name="hint_pin">PIN</string>
+    <string name="btn_unlock">Unlock</string>
+    <plurals name="pin_attempts_left">
+        <item quantity="one">Incorrect PIN. %1$d attempt left before lockout.</item>
+        <item quantity="other">Incorrect PIN. %1$d attempts left before lockout.</item>
+    </plurals>
+    <string name="pin_locked_out">Too many attempts. Try again in %1$d s.</string>
     <string name="section_broker">Broker</string>
     <string name="hint_broker_host">Host</string>
     <string name="hint_broker_port">Port</string>
@@ -35,13 +50,38 @@
     <string name="label_broker_tls">Use TLS</string>
     <string name="hint_broker_username">Username</string>
     <string name="hint_broker_password">Password</string>
+    <string name="section_session_policy">Session</string>
+    <string name="hint_auto_logout_minutes">Auto sign-out (minutes, 0 = never)</string>
+    <string name="error_auto_logout_minutes">Enter 0–1440</string>
+    <string name="btn_test_apply">Test &amp; Apply</string>
+    <string name="settings_testing">Testing connection…</string>
+    <string name="settings_apply_success">Connected — settings saved</string>
+    <string name="settings_apply_failed">Saved, but could not connect to %1$s:%2$d. Check the broker settings.</string>
+    <string name="error_host_required">Enter the broker host</string>
+    <string name="error_port_invalid">Enter a port from 1 to 65535</string>
+    <string name="error_broker_username_required">Enter the broker username</string>
+    <string name="error_broker_password_required">Enter the broker password</string>
+    <string name="error_password_store">Could not store the password securely</string>
     <string name="section_session">Session</string>
     <string name="label_mqtt_broker">MQTT Broker</string>
     <string name="label_station_row">Station 5</string>
     <string name="label_version">Version</string>
     <string name="label_device_id">Device ID</string>
     <string name="label_signed_in_as">Signed in as</string>
+    <!-- Diagnostics pills use the toolbar pill's vocabulary (UI audit section 5 "Pill vocabulary") -->
+    <string name="diag_broker_connected">Connected</string>
+    <string name="diag_broker_reconnecting">Reconnecting</string>
+    <string name="diag_broker_offline">Offline</string>
+    <string name="diag_station_online">Online</string>
+    <string name="diag_station_offline">Offline</string>
+    <string name="diag_station_unknown">Unknown</string>
 
     <string name="station_offline_title">MAIN STATION OFFLINE</string>
     <string name="station_offline_message">Please wait for the main station to reconnect...</string>
+
+    <!-- Forced sign-out reason shown on Login (UI audit group (j)) -->
+    <plurals name="signed_out_inactivity">
+        <item quantity="one">Signed out after %1$d minute of inactivity.</item>
+        <item quantity="other">Signed out after %1$d minutes of inactivity.</item>
+    </plurals>
 </resources>

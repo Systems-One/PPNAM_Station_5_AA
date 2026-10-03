@@ -1,12 +1,15 @@
 package com.mitas.ppnam.station5aa
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.WindowManager
+import androidx.activity.SystemBarStyle
+import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.mitas.ppnam.station5aa.databinding.ActivityMainBinding
 
 /**
@@ -14,7 +17,7 @@ import com.mitas.ppnam.station5aa.databinding.ActivityMainBinding
  * defines no workflow tabs yet, so allowedTabs gating (fail-closed — see OperatorSession.canShow)
  * leaves an operator with none, and the dashboard says so instead of showing an empty grid.
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : SessionActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
@@ -52,19 +55,33 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding = ActivityMainBinding.inflate(layoutInflater)
-        enableEdgeToEdge()
+        // Explicit dark styles: the default auto() style enforces a light contrast scrim over
+        // the three-button nav bar, which is what made this screen's bottom strip light grey
+        // while every other screen's was the window colour (UI audit group (h)).
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+        )
         setContentView(binding.root)
         forceLightStatusBarIcons()
 
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN)
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            // systemBars() alone would defeat the manifest's adjustResize if a field is ever
+            // added here (UI audit group (a) sub-cause 2) — pad for the keyboard too.
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime()
+            )
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
 
         setupDashboard()
+
+        // System Back used to finish the app silently (UI audit S5-05 / group (d)); every
+        // station confirms with the same "Close the app?" dialog as the Login screen.
+        onBackPressedDispatcher.addCallback(this) { showExitDialog() }
 
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
         MqttManager.getInstance(this).addStationStatusListener(stationStatusListener)
@@ -91,7 +108,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showLogoutDialog() {
-        androidx.appcompat.app.AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.logout_dialog_title))
             .setMessage(getString(R.string.logout_dialog_message))
             .setPositiveButton(getString(R.string.btn_log_out)) { _, _ ->
@@ -103,6 +120,15 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    private fun showExitDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.exit_dialog_title))
+            .setMessage(getString(R.string.exit_dialog_message))
+            .setPositiveButton(getString(R.string.exit_dialog_close)) { _, _ -> finishAffinity() }
+            .setNegativeButton(getString(R.string.exit_dialog_stay), null)
             .show()
     }
 

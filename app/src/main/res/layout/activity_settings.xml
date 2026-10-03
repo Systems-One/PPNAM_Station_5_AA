@@ -215,9 +215,31 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Enter supervisor PIN to edit settings"
+                        android:text="@string/pin_prompt"
                         android:textColor="@color/text_muted"
                         android:textSize="15sp" />
+
+                    <!-- Error / lockout text sits ABOVE the field (UI audit S5-04): below it,
+                         it landed exactly under the numeric keypad's top edge. -->
+                    <TextView
+                        android:id="@+id/tvPinError"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:textColor="@color/danger"
+                        android:textSize="13sp"
+                        android:visibility="gone"
+                        tools:text="Incorrect PIN. 4 attempts left before lockout."
+                        tools:visibility="visible" />
+
+                    <TextView
+                        android:id="@+id/tvPinLockout"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:textColor="@color/danger"
+                        android:textSize="13sp"
+                        android:visibility="gone" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -232,17 +254,19 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:hint="PIN"
+                            android:hint="@string/hint_pin"
                             app:boxStrokeColor="@color/outline_dark"
                             app:hintTextColor="@color/text_secondary_dark">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/etPin"
+                                android:saveEnabled="false"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:imeOptions="actionDone"
                                 android:inputType="numberPassword"
                                 android:maxLength="6"
-                                android:imeOptions="actionDone"
+                                android:singleLine="true"
                                 android:textColor="@color/text_primary_dark" />
                         </com.google.android.material.textfield.TextInputLayout>
 
@@ -251,28 +275,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="56dp"
                             android:layout_marginStart="12dp"
-                            android:text="Unlock" />
+                            android:text="@string/btn_unlock" />
                     </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/tvPinError"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:textColor="@color/danger"
-                        android:textSize="13sp"
-                        android:visibility="gone"
-                        tools:visibility="visible"
-                        tools:text="Incorrect PIN. 4 attempts left before lockout." />
-
-                    <TextView
-                        android:id="@+id/tvPinLockout"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:textColor="@color/danger"
-                        android:textSize="13sp"
-                        android:visibility="gone" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -307,7 +311,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/section_broker"
-                            android:textColor="@color/primary_action" />
+                            android:textColor="@color/brand_tint" />
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilBrokerHost"
@@ -323,7 +327,11 @@
                                 android:id="@+id/etBrokerHost"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:imeOptions="actionNext"
                                 android:inputType="textUri"
+                                android:nextFocusDown="@id/etBrokerPort"
+                                android:nextFocusForward="@id/etBrokerPort"
+                                android:singleLine="true"
                                 android:textColor="@color/text_primary_dark" />
                         </com.google.android.material.textfield.TextInputLayout>
 
@@ -341,23 +349,32 @@
                                 android:id="@+id/etBrokerPort"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:imeOptions="actionNext"
                                 android:inputType="number"
+                                android:nextFocusDown="@id/etBrokerUsername"
+                                android:nextFocusForward="@id/etBrokerUsername"
+                                android:singleLine="true"
                                 android:textColor="@color/text_primary_dark" />
                         </com.google.android.material.textfield.TextInputLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <!-- MaterialSwitch takes its track/thumb colours from the theme's
+                             colorPrimary (amber) instead of SwitchMaterial's lavender defaults
+                             (UI audit S5-08). -->
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/swBrokerWebSocket"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
                             android:text="@string/label_broker_websocket"
+                            android:theme="@style/ThemeOverlay.SysOneScanner.Switch"
                             android:textColor="@color/text_primary_dark" />
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/swBrokerTls"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="@string/label_broker_tls"
+                            android:theme="@style/ThemeOverlay.SysOneScanner.Switch"
                             android:textColor="@color/text_primary_dark" />
 
                         <com.google.android.material.textfield.TextInputLayout
@@ -374,7 +391,11 @@
                                 android:id="@+id/etBrokerUsername"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:imeOptions="actionNext"
                                 android:inputType="text"
+                                android:nextFocusDown="@id/etBrokerPassword"
+                                android:nextFocusForward="@id/etBrokerPassword"
+                                android:singleLine="true"
                                 android:textColor="@color/text_primary_dark" />
                         </com.google.android.material.textfield.TextInputLayout>
 
@@ -391,23 +412,100 @@
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/etBrokerPassword"
+                                android:saveEnabled="false"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:imeOptions="actionNext"
                                 android:inputType="textPassword"
+                                android:nextFocusDown="@id/etAutoLogout"
+                                android:nextFocusForward="@id/etAutoLogout"
+                                android:singleLine="true"
+                                android:textColor="@color/text_primary_dark" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <TextView
+                            style="@style/SettingsSectionLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="20dp"
+                            android:text="@string/section_session_policy"
+                            android:textColor="@color/brand_tint" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/tilAutoLogout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:hint="@string/hint_auto_logout_minutes"
+                            app:boxStrokeColor="@color/outline_dark"
+                            app:hintTextColor="@color/text_secondary_dark">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etAutoLogout"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:imeOptions="actionDone"
+                                android:inputType="number"
+                                android:maxLength="4"
+                                android:singleLine="true"
                                 android:textColor="@color/text_primary_dark" />
                         </com.google.android.material.textfield.TextInputLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
+            </LinearLayout>
+
+            <!-- Test & Apply result (UI audit): Testing... / green success / red failure.
+                 Outside the unlockable group so the confirmation stays readable after re-lock. -->
+            <LinearLayout
+                android:id="@+id/layoutApplyStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <ProgressBar
+                    android:id="@+id/progressApply"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginEnd="8dp"
+                    android:indeterminateTint="@color/accent_action"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
+                <TextView
+                    android:id="@+id/tvApplyStatus"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/text_muted"
+                    android:textSize="15sp"
+                    tools:text="Testing connection…" />
+            </LinearLayout>
+
+            <!-- Hidden with the fields on re-lock; the status row above stays readable. -->
+            <LinearLayout
+                android:id="@+id/groupApplyButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnSaveSettings"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
-                    android:layout_marginTop="16dp"
-                    android:text="Save &amp; Restart"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/btn_test_apply"
                     app:backgroundTint="@color/primary_action"
                     app:cornerRadius="14dp" />
             </LinearLayout>
+
 
             <!-- ============ Session, matching Station 2's SettingsScreen ============ -->
             <LinearLayout
@@ -471,11 +569,12 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnLogOut"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
                             android:layout_width="match_parent"
                             android:layout_height="56dp"
                             android:layout_marginTop="12dp"
                             android:text="@string/btn_log_out"
+                            android:textAllCaps="false"
                             android:textColor="@color/danger"
                             app:cornerRadius="14dp"
                             app:strokeColor="@color/danger" />

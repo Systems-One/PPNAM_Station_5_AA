@@ -25,6 +25,7 @@ class SettingsRepository(context: Context) {
         const val MQTT_USE_WEBSOCKET = "mqtt_use_websocket"
         const val MQTT_USE_TLS = "mqtt_use_tls"
         const val MQTT_USERNAME = "mqtt_username"
+        const val AUTO_LOGOUT_MINUTES = "auto_logout_minutes"
         /** Obsolete since the app became Station 5 only; removed on the next save. */
         const val LEGACY_STATION_INT = "station_int"
     }
@@ -65,6 +66,14 @@ class SettingsRepository(context: Context) {
 
     /** Whether this handheld has been provisioned with its own broker credential. */
     fun isProvisioned(): Boolean = brokerSettings().hasBrokerCredential
+
+    /** Inactivity auto-logout, in minutes; 0 = never (Station 1 spec). */
+    fun autoLogoutMinutes(): Int =
+        prefs.getInt(Keys.AUTO_LOGOUT_MINUTES, AutoLogout.DEFAULT_MINUTES)
+
+    fun saveAutoLogoutMinutes(minutes: Int) {
+        prefs.edit().putInt(Keys.AUTO_LOGOUT_MINUTES, minutes.coerceIn(0, AutoLogout.MAX_MINUTES)).apply()
+    }
 
     /** Wipes the broker credential. For decommissioning a handheld. */
     fun clearCredential() {

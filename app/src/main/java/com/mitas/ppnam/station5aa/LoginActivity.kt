@@ -4,13 +4,15 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.view.inputmethod.EditorInfo
+import androidx.core.widget.doAfterTextChanged
+import android.widget.EditText
 import androidx.activity.addCallback
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.mitas.ppnam.station5aa.databinding.ActivityLoginBinding
 
 /**
@@ -28,6 +30,11 @@ class LoginActivity : AppCompatActivity() {
      *  start a second, concurrent login that could overwrite the just-established session. */
     private var loginInFlight = false
     private var loggedIn = false
+
+    companion object {
+        /** Why the operator landed here without asking to; shown as the error line. */
+        const val EXTRA_SIGNED_OUT_REASON = "signed_out_reason"
+    }
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
         runOnUiThread { binding.connectionPill.setStatus(status) }
@@ -60,20 +67,31 @@ class LoginActivity : AppCompatActivity() {
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
 
         binding.btnLogin.setOnClickListener { submitCredentials() }
-        binding.etPassword.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                submitCredentials()
-                true
-            } else {
-                false
-            }
-        }
+        binding.etPassword.setOnSubmit { submitCredentials() }
+        // Editing either credential field clears the previous failure line.
+        binding.etUsername.doAfterTextChanged { binding.tvLoginError.visibility = View.GONE }
+        binding.etPassword.doAfterTextChanged { binding.tvLoginError.visibility = View.GONE }
 
         binding.btnSettings.setOnClickListener {
             startActivityForward(Intent(this, SettingsActivity::class.java))
         }
 
         binding.btnLogin.applyPressScaleFeedback()
+
+        // adjustResize shrinks the scroller when the keyboard opens; bring the primary button
+        // back into view so it is never left clipped under the IME (UI audit S5-01, report section 6).
+        binding.scrollLogin.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            val shrank = (bottom - top) < (oldBottom - oldTop)
+            if (shrank && currentFocus is EditText) {
+                binding.btnLogin.post { binding.btnLogin.bringIntoView() }
+            }
+        }
+
+        // The reason arrives as an extra when SessionGuard could start us itself; otherwise
+        // (background sign-out) it is waiting in PendingSignedOutReason. Always consume it.
+        val pendingReason = PendingSignedOutReason.take()
+        (intent.getStringExtra(EXTRA_SIGNED_OUT_REASON)?.takeIf { it.isNotBlank() } ?: pendingReason)
+            ?.let { showError(it) }
 
         // Back from the launcher screen would drop to the Android home screen without warning —
         // easy to hit by accident on a shared handheld. Ask first, like Station 2.
@@ -103,6 +121,7 @@ class LoginActivity : AppCompatActivity() {
             return
         }
         if (loginInFlight || loggedIn) return
+        hideKeyboard()
         setLoggingIn(true)
         authClient.login(username, password) { result -> onLoginResult(result) }
     }
@@ -123,8 +142,19 @@ class LoginActivity : AppCompatActivity() {
             }
             .onFailure { e ->
                 setLoggingIn(false)
-                showError(e.message ?: "Login failed")
+                showError(operatorMessage(e))
             }
+    }
+
+    /** Operator-facing wording for a failed login; protocol text never reaches the screen. */
+    private fun operatorMessage(e: Throwable): String = when (LoginFailure.classify(e.message, (e as? StationRejection)?.errorCode)) {
+        LoginFailureKind.WRONG_CREDENTIALS -> getString(R.string.login_error_wrong_credentials)
+        LoginFailureKind.TIMEOUT -> getString(R.string.login_error_timeout)
+        LoginFailureKind.NOT_CONNECTED -> getString(R.string.login_error_not_connected)
+        LoginFailureKind.REFUSED ->
+            getString(R.string.login_error_refused, (e as? StationRejection)?.errorCode.orEmpty())
+        LoginFailureKind.OTHER ->
+            e.message?.takeIf { it.isNotBlank() } ?: getString(R.string.login_error_generic)
     }
 
     private fun setLoggingIn(inFlight: Boolean) {
@@ -140,6 +170,11 @@ class LoginActivity : AppCompatActivity() {
     private fun showError(message: String) {
         binding.tvLoginError.text = message
         binding.tvLoginError.visibility = View.VISIBLE
+        binding.tvLoginError.post { binding.tvLoginError.bringIntoView() }
+    }
+
+    private fun View.bringIntoView() {
+        requestRectangleOnScreen(Rect(0, 0, width, height), false)
     }
 
     private fun goHome() {
@@ -151,7 +186,7 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun showExitDialog() {
-        AlertDialog.Builder(this, R.style.AppAlertDialogTheme)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.exit_dialog_title))
             .setMessage(getString(R.string.exit_dialog_message))
             .setPositiveButton(getString(R.string.exit_dialog_close)) { _, _ -> finishAffinity() }

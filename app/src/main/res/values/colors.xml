@@ -22,7 +22,7 @@
          app carries its launcher identity through its UI. -->
     <color name="station_field">#FFA85F14</color>
     <color name="brand_field">@color/station_field</color>
-    <color name="brand_tint">#E6C99F</color>
+    <color name="brand_tint">#E8C89D</color>
 
     <!-- Semantic / Accent Colours -->
     <color name="primary_action">@color/brand_field</color>
