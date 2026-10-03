@@ -110,7 +110,7 @@ class SettingsActivity : SessionActivity() {
      */
     private fun updateDiagnostics(status: ConnectionStatus) {
         val green = getColor(R.color.success)
-        val brand = getColor(R.color.primary_action)
+        val brand = getColor(R.color.brand_tint) // label text on the dark card: tint, not the fill amber
         val red = getColor(R.color.danger)
         val muted = getColor(R.color.text_muted)
 
