@@ -30,6 +30,11 @@ class LoginActivity : AppCompatActivity() {
     private var loginInFlight = false
     private var loggedIn = false
 
+    companion object {
+        /** Why the operator landed here without asking to; shown as the error line. */
+        const val EXTRA_SIGNED_OUT_REASON = "signed_out_reason"
+    }
+
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
         runOnUiThread { binding.connectionPill.setStatus(status) }
     }
@@ -77,6 +82,9 @@ class LoginActivity : AppCompatActivity() {
                 binding.btnLogin.post { binding.btnLogin.bringIntoView() }
             }
         }
+
+        intent.getStringExtra(EXTRA_SIGNED_OUT_REASON)?.takeIf { it.isNotBlank() }
+            ?.let { showError(it) }
 
         // Back from the launcher screen would drop to the Android home screen without warning —
         // easy to hit by accident on a shared handheld. Ask first, like Station 2.

@@ -21,6 +21,8 @@ class ScannerApp : Application() {
             // foreground may act on it (UI audit group (l)): currentActivity is non-null only
             // between onResume and onPause.
             if (currentActivity == null) return
+            // Scanner reads do not pass through onUserInteraction, so they count as activity here.
+            SessionGuard.touch()
             val data = intent.getStringExtra("data")
             if (data == SETTINGS_RFID) {
                 val settingsIntent = Intent(context, SettingsActivity::class.java).apply {
@@ -58,6 +60,9 @@ class ScannerApp : Application() {
         // Initialize and connect MQTT globally
         val mqtt = MqttManager.getInstance(this)
         mqtt.connect()
+
+        // Inactivity sign-out with a reason on Login (UI audit group (j), from Station 1).
+        SessionGuard.install(this)
 
         mqtt.addStationStatusListener { online ->
             if (!online) {

@@ -7,11 +7,10 @@ import android.os.Looper
 import android.view.MenuItem
 import android.view.View
 import androidx.activity.addCallback
-import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.mitas.ppnam.station5aa.databinding.ActivitySettingsBinding
 
-class SettingsActivity : AppCompatActivity() {
+class SettingsActivity : SessionActivity() {
 
     private lateinit var binding: ActivitySettingsBinding
 
@@ -52,13 +51,14 @@ class SettingsActivity : AppCompatActivity() {
         binding.swBrokerWebSocket.isChecked = current.useWebSocket
         binding.swBrokerTls.isChecked = current.useTls
         binding.etBrokerUsername.setText(current.username)
+        binding.etAutoLogout.setText(settingsRepository.autoLogoutMinutes().toString())
         // The password field stays empty: the stored credential is never echoed back into the UI.
         // A blank field on save means "keep the provisioned password" (see save below).
 
         binding.btnUnlock.setOnClickListener { submitPin() }
         binding.etPin.setOnSubmit { submitPin() }
         // Done on the last broker field is the same gesture as tapping the primary button.
-        binding.etBrokerPassword.setOnSubmit { binding.btnSaveSettings.performClick() }
+        binding.etAutoLogout.setOnSubmit { binding.btnSaveSettings.performClick() }
 
         binding.btnSaveSettings.setOnClickListener {
             val host = binding.etBrokerHost.text.toString().trim()
@@ -71,6 +71,15 @@ class SettingsActivity : AppCompatActivity() {
                 binding.etBrokerPort.error = "Invalid port (1–65535)"
                 return@setOnClickListener
             }
+
+            val autoLogoutMinutes = AutoLogout.parseMinutes(binding.etAutoLogout.text.toString())
+            if (autoLogoutMinutes == null) {
+                binding.tilAutoLogout.error = getString(R.string.error_auto_logout_minutes)
+                return@setOnClickListener
+            }
+            binding.tilAutoLogout.error = null
+            settingsRepository.saveAutoLogoutMinutes(autoLogoutMinutes)
+            SessionGuard.applyTimeout()
 
             val typedPassword = binding.etBrokerPassword.text.toString()
             val newSettings = BrokerSettings(

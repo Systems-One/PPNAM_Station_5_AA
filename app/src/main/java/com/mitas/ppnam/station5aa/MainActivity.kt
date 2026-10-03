@@ -7,7 +7,6 @@ import android.view.WindowManager
 import androidx.activity.SystemBarStyle
 import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -18,7 +17,7 @@ import com.mitas.ppnam.station5aa.databinding.ActivityMainBinding
  * defines no workflow tabs yet, so allowedTabs gating (fail-closed — see OperatorSession.canShow)
  * leaves an operator with none, and the dashboard says so instead of showing an empty grid.
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : SessionActivity() {
 
     private lateinit var binding: ActivityMainBinding
 

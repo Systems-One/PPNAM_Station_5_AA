@@ -413,8 +413,39 @@
                                 android:id="@+id/etBrokerPassword"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:imeOptions="actionDone"
+                                android:imeOptions="actionNext"
                                 android:inputType="textPassword"
+                                android:nextFocusDown="@id/etAutoLogout"
+                                android:nextFocusForward="@id/etAutoLogout"
+                                android:singleLine="true"
+                                android:textColor="@color/text_primary_dark" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <TextView
+                            style="@style/SettingsSectionLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="20dp"
+                            android:text="@string/section_session_policy"
+                            android:textColor="@color/primary_action" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/tilAutoLogout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:hint="@string/hint_auto_logout_minutes"
+                            app:boxStrokeColor="@color/outline_dark"
+                            app:hintTextColor="@color/text_secondary_dark">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etAutoLogout"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:imeOptions="actionDone"
+                                android:inputType="number"
+                                android:maxLength="4"
                                 android:singleLine="true"
                                 android:textColor="@color/text_primary_dark" />
                         </com.google.android.material.textfield.TextInputLayout>

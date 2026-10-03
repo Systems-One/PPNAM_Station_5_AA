@@ -49,6 +49,9 @@
     <string name="label_broker_tls">Use TLS</string>
     <string name="hint_broker_username">Username</string>
     <string name="hint_broker_password">Password</string>
+    <string name="section_session_policy">Session</string>
+    <string name="hint_auto_logout_minutes">Auto sign-out (minutes, 0 = never)</string>
+    <string name="error_auto_logout_minutes">Enter 0–1440</string>
     <string name="section_session">Session</string>
     <string name="label_mqtt_broker">MQTT Broker</string>
     <string name="label_station_row">Station 5</string>
@@ -65,4 +68,10 @@
 
     <string name="station_offline_title">MAIN STATION OFFLINE</string>
     <string name="station_offline_message">Please wait for the main station to reconnect...</string>
+
+    <!-- Forced sign-out reason shown on Login (UI audit group (j)) -->
+    <plurals name="signed_out_inactivity">
+        <item quantity="one">Signed out after %1$d minute of inactivity.</item>
+        <item quantity="other">Signed out after %1$d minutes of inactivity.</item>
+    </plurals>
 </resources>
