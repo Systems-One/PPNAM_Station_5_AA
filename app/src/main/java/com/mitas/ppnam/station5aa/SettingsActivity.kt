@@ -254,6 +254,8 @@ class SettingsActivity : SessionActivity() {
             if (pendingConnectionListener === listener) {
                 cancelPendingApply(mqtt)
                 onApplyResult(connected = false, settings = newSettings)
+                // A hung disconnect must never strand the handheld offline.
+                if (!mqtt.isConnected() && !mqtt.isConnectAttemptInFlight()) mqtt.connect()
             }
         }
         pendingConnectionListener = listener
@@ -263,14 +265,19 @@ class SettingsActivity : SessionActivity() {
         // Properly disconnect from the OLD broker first (publishes presence offline).
         mqtt.disconnect {
             runOnUiThread {
-                if (isFinishing || isDestroyed) {
-                    mqtt.connect() // no views to touch, but the handheld must not stay offline
+                if (isFinishing || isDestroyed || pendingConnectionListener !== listener) {
+                    // Screen gone, or the apply already timed out (a late disconnect callback must
+                    // not tear down whatever the timeout's fallback connected): no views to touch,
+                    // but the handheld must not stay offline.
+                    mqtt.connect()
                     return@runOnUiThread
                 }
                 registering = true
                 mqtt.addConnectionListener(listener)
                 registering = false
-                mqtt.connect()
+                // force: an attempt that was in flight against the old settings is abandoned,
+                // otherwise connect()'s isConnecting guard would swallow this one.
+                mqtt.connect(force = true)
             }
         }
     }
