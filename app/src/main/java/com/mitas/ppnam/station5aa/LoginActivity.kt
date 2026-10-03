@@ -13,6 +13,7 @@ import android.widget.EditText
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputLayout
 import com.mitas.ppnam.station5aa.databinding.ActivityLoginBinding
 
 /**
@@ -24,6 +25,8 @@ class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private lateinit var authClient: AuthClient
+    private lateinit var directory: OperatorDirectory
+    private var operators: List<OperatorEntry> = emptyList()
 
     /** Blocks re-entry for the whole logging-in -> navigated span, exactly like Station 2's
      *  LoginViewModel: a repeat badge read arriving after success but before navigation must not
@@ -38,6 +41,11 @@ class LoginActivity : AppCompatActivity() {
 
     private val connectionStatusListener: (ConnectionStatus) -> Unit = { status ->
         runOnUiThread { binding.connectionPill.setStatus(status) }
+    }
+
+    /** Refresh the directory each time the broker link comes up (contract v3.2.0 §4.5). */
+    private val connectionListener: (Boolean) -> Unit = { connected ->
+        if (connected) directory.refresh { list -> runOnUiThread { showOperators(list) } }
     }
 
     private val badgeReceiver = object : BroadcastReceiver() {
@@ -64,7 +72,10 @@ class LoginActivity : AppCompatActivity() {
         forceLightStatusBarIcons()
 
         authClient = AuthClient(this)
+        directory = OperatorDirectory(this)
+        showOperators(directory.cached())
         MqttManager.getInstance(this).addConnectionStatusListener(connectionStatusListener)
+        MqttManager.getInstance(this).addConnectionListener(connectionListener)
 
         binding.btnLogin.setOnClickListener { submitCredentials() }
         binding.etPassword.setOnSubmit { submitCredentials() }
@@ -167,6 +178,42 @@ class LoginActivity : AppCompatActivity() {
         if (inFlight) binding.tvLoginError.visibility = View.GONE
     }
 
+    /**
+     * Dropdown rows read "username — Display Name"; username first so the adapter's prefix
+     * filter narrows on what the operator types. Picking a row leaves only the username,
+     * which is what SCRAM authenticates. Typing a name that is not listed still works.
+     * The dropdown arrow is only shown once there is a list to open.
+     */
+    private fun showOperators(list: List<OperatorEntry>) {
+        operators = list.sortedBy { it.displayName.lowercase() }
+        val labels = operators.map { "${it.username} — ${it.displayName}" }
+        binding.etUsername.setAdapter(
+            android.widget.ArrayAdapter(this, android.R.layout.simple_list_item_1, labels)
+        )
+        // Keep the dropdown delegate installed and only toggle visibility: swapping the mode
+        // left the arrow showing on an empty list.
+        binding.tilUsername.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
+        binding.tilUsername.isEndIconVisible = operators.isNotEmpty()
+        // Hardware Enter must not pop an empty dropdown open; move on to the password instead.
+        binding.etUsername.setOnKeyListener { _, keyCode, event ->
+            if (operators.isEmpty() && keyCode == android.view.KeyEvent.KEYCODE_ENTER) {
+                if (event.action == android.view.KeyEvent.ACTION_UP) binding.etPassword.requestFocus()
+                true
+            } else false
+        }
+        // An editable autocomplete does not open its list on tap, and an empty field filters
+        // to nothing — so with a threshold of 0 we open it ourselves when the field is touched.
+        binding.etUsername.setOnClickListener {
+            if (operators.isNotEmpty()) binding.etUsername.showDropDown()
+        }
+        binding.etUsername.setOnItemClickListener { _, _, position, _ ->
+            val label = binding.etUsername.adapter.getItem(position) as String
+            val picked = operators.firstOrNull { "${it.username} — ${it.displayName}" == label }
+            binding.etUsername.setText(picked?.username ?: label, false)
+            binding.etPassword.requestFocus()
+        }
+    }
+
     private fun showError(message: String) {
         binding.tvLoginError.text = message
         binding.tvLoginError.visibility = View.VISIBLE
@@ -198,6 +245,7 @@ class LoginActivity : AppCompatActivity() {
         super.onDestroy()
         if (::authClient.isInitialized) {
             MqttManager.getInstance(this).removeConnectionStatusListener(connectionStatusListener)
+            MqttManager.getInstance(this).removeConnectionListener(connectionListener)
         }
     }
 }
