@@ -457,9 +457,40 @@
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
                     android:layout_marginTop="16dp"
-                    android:text="Save &amp; Restart"
+                    android:text="@string/btn_test_apply"
                     app:backgroundTint="@color/primary_action"
                     app:cornerRadius="14dp" />
+            </LinearLayout>
+
+            <!-- Test & Apply result (UI audit): Testing... / green success / red failure.
+                 Outside the unlockable group so the confirmation stays readable after re-lock. -->
+            <LinearLayout
+                android:id="@+id/layoutApplyStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <ProgressBar
+                    android:id="@+id/progressApply"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginEnd="8dp"
+                    android:indeterminateTint="@color/accent_action"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
+                <TextView
+                    android:id="@+id/tvApplyStatus"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/text_muted"
+                    android:textSize="15sp"
+                    tools:text="Testing connection…" />
             </LinearLayout>
 
             <!-- ============ Session, matching Station 2's SettingsScreen ============ -->

@@ -52,6 +52,15 @@
     <string name="section_session_policy">Session</string>
     <string name="hint_auto_logout_minutes">Auto sign-out (minutes, 0 = never)</string>
     <string name="error_auto_logout_minutes">Enter 0–1440</string>
+    <string name="btn_test_apply">Test &amp; Apply</string>
+    <string name="settings_testing">Testing connection…</string>
+    <string name="settings_apply_success">Connected — settings saved</string>
+    <string name="settings_apply_failed">Could not connect to %1$s:%2$d within 10 s. Check the settings and try again.</string>
+    <string name="error_host_required">Enter the broker host</string>
+    <string name="error_port_invalid">Enter a port from 1 to 65535</string>
+    <string name="error_broker_username_required">Enter the broker username</string>
+    <string name="error_broker_password_required">Enter the broker password</string>
+    <string name="error_password_store">Could not store the password securely</string>
     <string name="section_session">Session</string>
     <string name="label_mqtt_broker">MQTT Broker</string>
     <string name="label_station_row">Station 5</string>
