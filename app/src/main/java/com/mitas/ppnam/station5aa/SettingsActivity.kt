@@ -35,6 +35,9 @@ class SettingsActivity : SessionActivity() {
     /** Set synchronously on entry: the listener guard below only exists after the async disconnect. */
     private var applying = false
 
+    /** Settings is also reachable from Login; it only needs a session if it was opened with one. */
+    override fun requiresSession(): Boolean = signedInAtCreate
+
     private enum class ApplyStatus { HIDDEN, TESTING, SUCCESS, FAILED }
 
     private companion object {

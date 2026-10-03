@@ -74,6 +74,7 @@ object SessionGuard {
     fun signOut(reason: String) {
         if (OperatorSessionHolder.session == null) return
         Log.i(TAG, "Signing out: $reason")
+        PendingSignedOutReason.set(reason)
         AuthClient(app).logout {
             app.startActivity(Intent(app, LoginActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

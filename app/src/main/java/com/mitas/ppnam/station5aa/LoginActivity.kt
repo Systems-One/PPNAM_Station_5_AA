@@ -87,7 +87,10 @@ class LoginActivity : AppCompatActivity() {
             }
         }
 
-        intent.getStringExtra(EXTRA_SIGNED_OUT_REASON)?.takeIf { it.isNotBlank() }
+        // The reason arrives as an extra when SessionGuard could start us itself; otherwise
+        // (background sign-out) it is waiting in PendingSignedOutReason. Always consume it.
+        val pendingReason = PendingSignedOutReason.take()
+        (intent.getStringExtra(EXTRA_SIGNED_OUT_REASON)?.takeIf { it.isNotBlank() } ?: pendingReason)
             ?.let { showError(it) }
 
         // Back from the launcher screen would drop to the Android home screen without warning —
