@@ -1,6 +1,8 @@
 package com.mitas.ppnam.station5aa
 
 import android.app.Activity
+import android.graphics.Rect
+import android.view.View
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 
@@ -19,4 +21,9 @@ fun Activity.forceLightStatusBarIcons() {
  */
 fun Activity.hideKeyboard() {
     WindowCompat.getInsetsController(window, window.decorView).hide(WindowInsetsCompat.Type.ime())
+}
+
+/** Asks the enclosing scroll container to scroll just enough that this whole view is on screen. */
+fun View.scrollIntoView() {
+    requestRectangleOnScreen(Rect(0, 0, width, height), false)
 }

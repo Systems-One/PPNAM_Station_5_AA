@@ -324,6 +324,7 @@ class SettingsActivity : SessionActivity() {
         }
         binding.tvApplyStatus.text = text
         binding.tvApplyStatus.setTextColor(getColor(colorRes))
+        if (status != ApplyStatus.HIDDEN) binding.btnSaveSettings.post { binding.btnSaveSettings.scrollIntoView() }
     }
 
     private fun submitPin() {
@@ -336,6 +337,7 @@ class SettingsActivity : SessionActivity() {
                 showApplyStatus(ApplyStatus.HIDDEN)
                 binding.cardPinLock.visibility = View.GONE
                 binding.groupSettingsFields.visibility = View.VISIBLE
+                binding.groupApplyButton.visibility = View.VISIBLE
             }
             is PinGate.Outcome.Wrong -> {
                 binding.etPin.setText("")
@@ -378,6 +380,7 @@ class SettingsActivity : SessionActivity() {
         binding.etPin.setText("")
         hidePinMessages()
         binding.groupSettingsFields.visibility = View.GONE
+        binding.groupApplyButton.visibility = View.GONE
         binding.cardPinLock.visibility = View.VISIBLE
     }
 
