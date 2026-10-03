@@ -214,61 +214,65 @@ class SettingsActivity : SessionActivity() {
     /**
      * Test & Apply (UI audit section 5): save, reconnect against the new broker and report the
      * outcome in place. The operator stays on this screen and keeps their session.
+     *
+     * Settings are persisted BEFORE the old link is dropped, and the reconnect always happens
+     * even if this screen is gone by then - otherwise the handheld would be left Offline with
+     * wantsConnection=false. The 10 s verdict budget starts at the button press.
      */
     private fun testAndApply() {
         if (applying) return
         val (newSettings, minutes) = validatedInput() ?: return
         hideKeyboard()
+
+        val mqtt = MqttManager.getInstance(this)
+        // Keystore first: if the credential cannot be stored nothing else changes and the
+        // current connection is left alone.
+        if (!settingsRepository.save(newSettings)) {
+            binding.tilBrokerPassword.error = getString(R.string.error_password_store)
+            return
+        }
+        settingsRepository.saveAutoLogoutMinutes(minutes)
+        SessionGuard.applyTimeout()
+
         applying = true
         setApplyInFlight(true)
         showApplyStatus(ApplyStatus.TESTING)
-
-        val mqtt = MqttManager.getInstance(this)
         cancelPendingApply(mqtt)
 
-        // 1. Properly disconnect from the OLD broker first (publishes presence offline).
-        mqtt.disconnect {
-            runOnUiThread {
-                if (isFinishing || isDestroyed) return@runOnUiThread
-                // 2. Save the new settings after the old presence is offline.
-                if (!settingsRepository.save(newSettings)) {
-                    binding.tilBrokerPassword.error = getString(R.string.error_password_store)
-                    showApplyStatus(ApplyStatus.HIDDEN)
-                    setApplyInFlight(false)
-                    mqtt.connect()
-                    return@runOnUiThread
-                }
-                settingsRepository.saveAutoLogoutMinutes(minutes)
-                SessionGuard.applyTimeout()
-                // 3. Reconnect against the new broker and wait (once) for the verdict.
-                awaitConnection(mqtt, newSettings)
-            }
-        }
-    }
-
-    private fun awaitConnection(mqtt: MqttManager, settings: BrokerSettings) {
+        var registering = false
         lateinit var listener: (Boolean) -> Unit
         listener = { connected ->
-            if (connected) runOnUiThread {
+            // addConnectionListener replays the current state once; that is not a verdict.
+            if (connected && !registering) runOnUiThread {
                 if (pendingConnectionListener === listener) {
                     cancelPendingApply(mqtt)
-                    onApplyResult(connected = true, settings = settings)
+                    onApplyResult(connected = true, settings = newSettings)
                 }
             }
         }
         val timeout = Runnable {
             if (pendingConnectionListener === listener) {
                 cancelPendingApply(mqtt)
-                onApplyResult(connected = false, settings = settings)
+                onApplyResult(connected = false, settings = newSettings)
             }
         }
         pendingConnectionListener = listener
         applyTimeout = timeout
         applyHandler.postDelayed(timeout, APPLY_TIMEOUT_MS)
-        // addConnectionListener fires once immediately with the current (disconnected) state,
-        // which the listener ignores; the real verdict arrives on connect.
-        mqtt.addConnectionListener(listener)
-        mqtt.connect()
+
+        // Properly disconnect from the OLD broker first (publishes presence offline).
+        mqtt.disconnect {
+            runOnUiThread {
+                if (isFinishing || isDestroyed) {
+                    mqtt.connect() // no views to touch, but the handheld must not stay offline
+                    return@runOnUiThread
+                }
+                registering = true
+                mqtt.addConnectionListener(listener)
+                registering = false
+                mqtt.connect()
+            }
+        }
     }
 
     private fun cancelPendingApply(mqtt: MqttManager) {
