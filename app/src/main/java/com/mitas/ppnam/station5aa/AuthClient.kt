@@ -212,13 +212,13 @@ class AuthClient(context: Context) {
         onResponse = { publish ->
             parseCorrelated(publish)?.let { json ->
                 if (Schema41.isAccepted(json)) finish(Result.success(json))
-                else finish(failure(Schema41.rejectionMessage(json)))
+                else finish(Result.failure(Schema41.rejection(json)))
             }
         }
 
         onRejected = { publish ->
             parseCorrelated(publish)?.let { json ->
-                finish(failure(Schema41.rejectionMessage(json)))
+                finish(Result.failure(Schema41.rejection(json)))
             }
         }
 

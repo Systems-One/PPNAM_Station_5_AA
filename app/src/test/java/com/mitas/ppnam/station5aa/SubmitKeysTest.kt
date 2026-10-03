@@ -50,4 +50,11 @@ class SubmitKeysTest {
         assertFalse(SubmitKeys.isEnterKey(KeyEvent.KEYCODE_A))
         assertFalse(SubmitKeys.isEnterKey(SubmitKeys.NO_KEY))
     }
+
+    @Test
+    fun `held Enter repeats do not submit again`() {
+        assertTrue(SubmitKeys.isSubmit(EditorInfo.IME_NULL, KeyEvent.KEYCODE_ENTER, KeyEvent.ACTION_DOWN, 0))
+        assertFalse(SubmitKeys.isSubmit(EditorInfo.IME_NULL, KeyEvent.KEYCODE_ENTER, KeyEvent.ACTION_DOWN, 1))
+        assertFalse(SubmitKeys.isSubmit(EditorInfo.IME_NULL, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.ACTION_DOWN, 3))
+    }
 }

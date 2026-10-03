@@ -22,6 +22,7 @@
     <string name="login_error_timeout">Station 5 did not respond. Check the station and retry.</string>
     <string name="login_error_not_connected">Not connected to the broker. Check Settings and try again.</string>
     <string name="login_error_generic">Login failed. Try again.</string>
+    <string name="login_error_refused">Login was refused by the station (%1$s). Ask a supervisor.</string>
     <string name="exit_dialog_title">Close the app?</string>
     <string name="exit_dialog_message">You\'ll leave PPNAM Station 5 and return to the home screen.</string>
     <string name="exit_dialog_close">Close</string>
@@ -55,7 +56,7 @@
     <string name="btn_test_apply">Test &amp; Apply</string>
     <string name="settings_testing">Testing connection…</string>
     <string name="settings_apply_success">Connected — settings saved</string>
-    <string name="settings_apply_failed">Could not connect to %1$s:%2$d within 10 s. Check the settings and try again.</string>
+    <string name="settings_apply_failed">Saved, but could not connect to %1$s:%2$d. Check the broker settings.</string>
     <string name="error_host_required">Enter the broker host</string>
     <string name="error_port_invalid">Enter a port from 1 to 65535</string>
     <string name="error_broker_username_required">Enter the broker username</string>

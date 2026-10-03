@@ -15,12 +15,13 @@ object SubmitKeys {
     /** Sentinel for "no KeyEvent" (IME action buttons arrive with a null event). */
     const val NO_KEY = -1
 
-    fun isSubmit(actionId: Int, keyCode: Int, keyAction: Int): Boolean {
+    /** A held key repeats ACTION_DOWN with repeatCount > 0; only the first press submits. */
+    fun isSubmit(actionId: Int, keyCode: Int, keyAction: Int, repeatCount: Int = 0): Boolean {
         val imeAction = actionId == EditorInfo.IME_ACTION_DONE ||
             actionId == EditorInfo.IME_ACTION_GO ||
             actionId == EditorInfo.IME_ACTION_SEND ||
             actionId == EditorInfo.IME_ACTION_SEARCH
-        val enterDown = isEnterKey(keyCode) && keyAction == KeyEvent.ACTION_DOWN
+        val enterDown = isEnterKey(keyCode) && keyAction == KeyEvent.ACTION_DOWN && repeatCount == 0
         return imeAction || enterDown
     }
 
@@ -36,7 +37,7 @@ fun TextView.setOnSubmit(action: () -> Unit) {
         val keyCode = event?.keyCode ?: SubmitKeys.NO_KEY
         val keyAction = event?.action ?: SubmitKeys.NO_KEY
         when {
-            SubmitKeys.isSubmit(actionId, keyCode, keyAction) -> {
+            SubmitKeys.isSubmit(actionId, keyCode, keyAction, event?.repeatCount ?: 0) -> {
                 action()
                 true
             }

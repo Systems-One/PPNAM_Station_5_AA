@@ -8,6 +8,7 @@ import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.view.View
+import androidx.core.widget.doAfterTextChanged
 import android.widget.EditText
 import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -67,6 +68,9 @@ class LoginActivity : AppCompatActivity() {
 
         binding.btnLogin.setOnClickListener { submitCredentials() }
         binding.etPassword.setOnSubmit { submitCredentials() }
+        // Editing either credential field clears the previous failure line.
+        binding.etUsername.doAfterTextChanged { binding.tvLoginError.visibility = View.GONE }
+        binding.etPassword.doAfterTextChanged { binding.tvLoginError.visibility = View.GONE }
 
         binding.btnSettings.setOnClickListener {
             startActivityForward(Intent(this, SettingsActivity::class.java))
@@ -140,10 +144,12 @@ class LoginActivity : AppCompatActivity() {
     }
 
     /** Operator-facing wording for a failed login; protocol text never reaches the screen. */
-    private fun operatorMessage(e: Throwable): String = when (LoginFailure.classify(e.message)) {
+    private fun operatorMessage(e: Throwable): String = when (LoginFailure.classify(e.message, (e as? StationRejection)?.errorCode)) {
         LoginFailureKind.WRONG_CREDENTIALS -> getString(R.string.login_error_wrong_credentials)
         LoginFailureKind.TIMEOUT -> getString(R.string.login_error_timeout)
         LoginFailureKind.NOT_CONNECTED -> getString(R.string.login_error_not_connected)
+        LoginFailureKind.REFUSED ->
+            getString(R.string.login_error_refused, (e as? StationRejection)?.errorCode.orEmpty())
         LoginFailureKind.OTHER ->
             e.message?.takeIf { it.isNotBlank() } ?: getString(R.string.login_error_generic)
     }

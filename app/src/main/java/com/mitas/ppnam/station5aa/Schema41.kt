@@ -46,6 +46,10 @@ object Schema41 {
 
     fun isAccepted(response: JSONObject): Boolean = response.optBoolean("accepted", false)
 
+    /** The rejection as an exception that keeps the machine-readable errorCode. */
+    fun rejection(response: JSONObject): StationRejection =
+        StationRejection(response.optString("errorCode", ""), rejectionMessage(response))
+
     /** Operator-facing text for a rejection: the station's sanitized reason, else the code. */
     fun rejectionMessage(response: JSONObject): String =
         response.optString("reason", "").ifBlank {

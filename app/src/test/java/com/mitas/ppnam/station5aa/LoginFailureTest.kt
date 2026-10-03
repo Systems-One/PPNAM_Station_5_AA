@@ -5,20 +5,33 @@ import org.junit.Test
 
 /**
  * Raw protocol text ("SCRAM proof rejected.") must never reach the operator (UI audit
- * group (f)); the classifier maps what AuthClient/Schema41 produce onto operator-facing kinds.
+ * group (f)); only credential-type error codes are reported as wrong credentials.
  */
 class LoginFailureTest {
 
     @Test
-    fun `SCRAM proof rejection is a wrong-credentials failure`() {
-        assertEquals(LoginFailureKind.WRONG_CREDENTIALS, LoginFailure.classify("SCRAM proof rejected."))
+    fun `credential-type codes are wrong-credentials`() {
+        assertEquals(LoginFailureKind.WRONG_CREDENTIALS, LoginFailure.classify("SCRAM proof rejected.", "authentication_failed"))
+        assertEquals(LoginFailureKind.WRONG_CREDENTIALS, LoginFailure.classify("x", "scram_proof_invalid"))
+        assertEquals(LoginFailureKind.WRONG_CREDENTIALS, LoginFailure.classify("x", "INVALID_CREDENTIALS"))
     }
 
     @Test
-    fun `password and credential wording is wrong-credentials`() {
-        assertEquals(LoginFailureKind.WRONG_CREDENTIALS, LoginFailure.classify("Invalid password"))
-        assertEquals(LoginFailureKind.WRONG_CREDENTIALS, LoginFailure.classify("Unknown credential"))
-        assertEquals(LoginFailureKind.WRONG_CREDENTIALS, LoginFailure.classify("AUTH_FAILED"))
+    fun `other rejection codes are refused, not wrong-credentials`() {
+        assertEquals(LoginFailureKind.REFUSED, LoginFailure.classify("Challenge expired", "scram_challenge_expired"))
+        assertEquals(LoginFailureKind.REFUSED, LoginFailure.classify("Challenge reused", "scram_challenge_reused"))
+        assertEquals(LoginFailureKind.REFUSED, LoginFailure.classify("Bad envelope", "invalid_envelope"))
+    }
+
+    @Test
+    fun `reason text alone never means wrong credentials`() {
+        assertEquals(LoginFailureKind.OTHER, LoginFailure.classify("SCRAM proof rejected."))
+        assertEquals(LoginFailureKind.OTHER, LoginFailure.classify("Invalid password"))
+    }
+
+    @Test
+    fun `badge rejections pass their reason through`() {
+        assertEquals(LoginFailureKind.OTHER, LoginFailure.classify("Badge not recognized.", "badge_rejected"))
     }
 
     @Test
@@ -42,6 +55,7 @@ class LoginFailureTest {
 
     @Test
     fun `matching ignores case`() {
-        assertEquals(LoginFailureKind.WRONG_CREDENTIALS, LoginFailure.classify("scram PROOF Rejected"))
+        assertEquals(LoginFailureKind.TIMEOUT, LoginFailure.classify("STATION DID NOT RESPOND"))
+        assertEquals(LoginFailureKind.WRONG_CREDENTIALS, LoginFailure.classify("x", "Authentication_Failed"))
     }
 }

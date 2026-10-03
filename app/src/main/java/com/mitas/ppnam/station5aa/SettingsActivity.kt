@@ -32,6 +32,8 @@ class SettingsActivity : SessionActivity() {
     private val applyHandler = Handler(Looper.getMainLooper())
     private var pendingConnectionListener: ((Boolean) -> Unit)? = null
     private var applyTimeout: Runnable? = null
+    /** Set synchronously on entry: the listener guard below only exists after the async disconnect. */
+    private var applying = false
 
     private enum class ApplyStatus { HIDDEN, TESTING, SUCCESS, FAILED }
 
@@ -214,8 +216,10 @@ class SettingsActivity : SessionActivity() {
      * outcome in place. The operator stays on this screen and keeps their session.
      */
     private fun testAndApply() {
+        if (applying) return
         val (newSettings, minutes) = validatedInput() ?: return
         hideKeyboard()
+        applying = true
         setApplyInFlight(true)
         showApplyStatus(ApplyStatus.TESTING)
 
@@ -289,6 +293,7 @@ class SettingsActivity : SessionActivity() {
     }
 
     private fun setApplyInFlight(inFlight: Boolean) {
+        applying = inFlight
         binding.btnSaveSettings.isEnabled = !inFlight
     }
 
