@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  *   req/scram_proof_requested   -> res/scram_proof_result
  *   req/login_requested         -> res/operator_context
  *   req/reader_logout_requested -> res/operator_context (fire-and-forget here)
+ *   req/operator_list_requested -> res/operator_list (login dropdown, v3.2.0 §4.5)
  *
  * Every request carries the schema 4.1 envelope (Schema41). Responses are correlated on
  * inResponseToMessageId and branched on `accepted`/`errorCode` — free-text `reason` is shown
@@ -122,6 +123,14 @@ class AuthClient(context: Context) {
         }
         request("login_requested", "operator_context", payload) { result ->
             onResult(result.fold({ buildSession(it) }, { Result.failure(it) }))
+        }
+    }
+
+    /** Contract v3.2.0 §4.5: the display-only operator directory for the login dropdown. */
+    fun operatorList(onResult: (Result<List<OperatorEntry>>) -> Unit) {
+        val payload = Schema41.envelope(Schema41.newMessageId("operator-list"), deviceId())
+        request("operator_list_requested", "operator_list", payload) { result ->
+            onResult(result.map { OperatorListCodec.fromResponse(it) })
         }
     }
 

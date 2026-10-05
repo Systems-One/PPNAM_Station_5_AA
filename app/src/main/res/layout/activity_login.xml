@@ -96,21 +96,22 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilUsername"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="@string/hint_username"
                         app:boxStrokeColor="@color/outline_dark"
+                        app:endIconTint="@color/text_muted"
                         app:hintTextColor="@color/text_secondary_dark">
 
-                        <com.google.android.material.textfield.TextInputEditText
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
                             android:id="@+id/etUsername"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:completionThreshold="0"
                             android:imeOptions="actionNext"
-                            android:inputType="text"
+                            android:inputType="text|textNoSuggestions"
                             android:maxLines="1"
-                            android:singleLine="true"
                             android:textColor="@color/text_primary_dark" />
                     </com.google.android.material.textfield.TextInputLayout>
 
