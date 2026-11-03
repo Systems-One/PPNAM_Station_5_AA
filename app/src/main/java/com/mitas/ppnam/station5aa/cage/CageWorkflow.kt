@@ -95,10 +95,11 @@ class CageWorkflow(
         if (scanned.isBlank() || session == null || !acceptsScans()) return@step emptyList()
         val screen = state.screen
         if (screen !is CageScreen.Loading || !isArmed(screen)) {
-            // One cage tag arms exactly one Pack: a QR without a live arm is never sent.
+            // One cage tag arms exactly one Pack: a QR without a live arm is never sent. It is a
+            // full-screen stop (not a small notice) so the operator can't take it for an accepted Pack.
             if (screen is CageScreen.Loading) state = state.copy(screen = screen.copy(armExpiresAtMs = null))
-            state = state.copy(notice = Notice(SCAN_TAG_BEFORE_PACK, Notice.Tone.WARNING))
-            return@step listOf(Effect.ErrorFeedback)
+            state = state.copy(notice = null)
+            return@step refuse(RefusalCatalog.scanCageTagFirst())
         }
         state = state.copy(notice = null)
         // A malformed label is refused locally; nothing is sent, so the station's arm is unspent.
@@ -118,7 +119,7 @@ class CageWorkflow(
         when (pending.intent) {
             RequestIntent.SELECT -> onSelectAccepted(json)
             RequestIntent.READ_ACTIVE -> onReadActiveAccepted(json)
-            RequestIntent.ALLOCATE -> onAllocateAccepted(json)
+            RequestIntent.ALLOCATE -> onAllocateAccepted(pending, json)
             RequestIntent.READ_LOAD -> onReadLoadAccepted(json)
             RequestIntent.RECOVER_ALLOCATION -> onRecoverAllocationAccepted(pending, json)
             RequestIntent.RECOVER_COMPLETION -> onRecoverCompletionAccepted(json)
@@ -324,18 +325,40 @@ class CageWorkflow(
         return emptyList()
     }
 
-    private fun onAllocateAccepted(json: JSONObject): List<Effect> {
+    /**
+     * An accepted allocation. A Pack already in this load (idempotent rescan: its bagId is in the
+     * shown list, the station's packCount did not rise, or `alreadyAllocated:true`) is not a new
+     * placement: no success feedback, an INFO notice, and the last-Pack card is left as it was.
+     */
+    private fun onAllocateAccepted(pending: PendingRequest, json: JSONObject): List<Effect> {
         val current = state.screen as? CageScreen.Loading
         val load = CageJson.load(json.optJSONObject("load")) ?: current?.load ?: return listOf(Effect.SuccessFeedback)
         val pack = CageJson.allocatedPack(json.optJSONObject("pack"))
-        val previous = current?.takeIf { it.load.loadId == load.loadId }?.packs.orEmpty()
-        val packs = if (pack == null) previous else listOf(pack) + previous.filter { it.bagId != pack.bagId }
+        val same = current?.takeIf { it.load.loadId == load.loadId }
+        val previous = same?.packs.orEmpty()
+        val bagId = pack?.bagId ?: pending.bagId
+        val already = json.optBoolean("alreadyAllocated", false) ||
+            (bagId != null && previous.any { it.bagId == bagId }) ||
+            (same != null && load.packCount <= same.load.packCount)
+        val packs = when {
+            pack == null -> previous
+            previous.any { it.bagId == pack.bagId } -> previous // already listed: keep its place
+            else -> listOf(pack) + previous
+        }
         // Every allocation reply spends the arm; the screen is left not armed.
-        state = state.copy(screen = CageScreen.Loading(load, packs, pack))
-        val session = sessionId ?: return listOf(Effect.SuccessFeedback)
+        val feedback = if (already) {
+            state = state.copy(
+                screen = CageScreen.Loading(load, packs, same?.lastPack),
+                notice = Notice("${bagId ?: "This Pack"} is already in this cage.", Notice.Tone.INFO),
+            )
+            emptyList()
+        } else {
+            state = state.copy(screen = CageScreen.Loading(load, packs, pack))
+            listOf(Effect.SuccessFeedback)
+        }
+        val session = sessionId ?: return feedback
         // Between cycles a context read is allowed: refresh the list from the station.
-        return listOf(Effect.SuccessFeedback) +
-            send(requests.readLoad(session, load.loadId, RequestIntent.READ_LOAD, PACK_REFRESH))
+        return feedback + send(requests.readLoad(session, load.loadId, RequestIntent.READ_LOAD, PACK_REFRESH))
     }
 
     /**
@@ -478,7 +501,6 @@ class CageWorkflow(
     }
 
     private companion object {
-        const val SCAN_TAG_BEFORE_PACK = "Scan the cage tag before each Pack"
         const val TAG_EXPIRED = "Cage tag expired — scan it again"
         const val NEW_COUNT = "Tap Complete cage again to see the new count."
         const val CONTENTS_CHANGED = "cage_contents_changed"

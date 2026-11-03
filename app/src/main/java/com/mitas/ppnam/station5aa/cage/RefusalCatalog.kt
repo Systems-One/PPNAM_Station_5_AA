@@ -68,6 +68,11 @@ object RefusalCatalog {
         }
     }
 
+    /** A Pack QR scanned while no cage tag is armed: nothing is sent, and the Pack must not go in yet. */
+    fun scanCageTagFirst(): Refusal = Refusal(
+        "Do NOT load this Pack yet", "Scan the cage tag first, then scan this Pack again.",
+        "local_cage_scan_required", AfterRefusal.STAY)
+
     fun labelNotRecognised(): Refusal = Refusal(
         NO_LOAD, "Label not recognised. Scan the Pack's QR label again or put it aside for checking.",
         "local_invalid_qr", AfterRefusal.STAY)

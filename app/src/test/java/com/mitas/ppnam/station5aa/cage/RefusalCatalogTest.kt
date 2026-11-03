@@ -126,5 +126,10 @@ class RefusalCatalogTest {
         "Label not recognised. Scan the Pack's QR label again or put it aside for checking.",
         "local_invalid_qr", AfterRefusal.STAY)
 
+    @Test fun scanCageTagFirst() = check(
+        RefusalCatalog.scanCageTagFirst(), "Do NOT load this Pack yet",
+        "Scan the cage tag first, then scan this Pack again.",
+        "local_cage_scan_required", AfterRefusal.STAY)
+
     @Test fun transient() = assertEquals(setOf("processing_paused", "confirmation_busy"), RefusalCatalog.TRANSIENT)
 }

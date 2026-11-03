@@ -2,7 +2,6 @@ package com.mitas.ppnam.station5aa
 
 import java.security.MessageDigest
 import java.security.SecureRandom
-import java.text.Normalizer
 import java.util.Base64
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -21,7 +20,7 @@ import javax.crypto.spec.SecretKeySpec
  *
  * ### Why PBKDF2 is implemented here rather than via `SecretKeyFactory`
  *
- * SCRAM is defined over the **UTF-8 bytes** of the normalized password. `PBEKeySpec` takes a
+ * SCRAM is computed here over the **UTF-8 bytes** of the password (see [normalizePassword]). `PBEKeySpec` takes a
  * `char[]`, and how a JCE provider turns those chars into bytes is exactly the historical
  * PKCS#5-vs-PKCS#12 ambiguity — some providers use only the low byte of each char, which silently
  * produces a different key for any non-ASCII password while working perfectly for ASCII ones. That
@@ -59,11 +58,13 @@ object ScramCrypto {
         username.replace("=", "=3D").replace(",", "=2C")
 
     /**
-     * SASLprep-lite: Unicode Normalization Form KC, matching what the station computes on its
-     * side of the proof.
+     * The password bytes PBKDF2 is keyed with: the plain UTF-8 encoding of the password, with **no**
+     * normalisation. The station derives its stored keys the same way (StationAuthentication.cs,
+     * `Rfc2898DeriveBytes.Pbkdf2(string, …)` over the UTF-8 password), so applying NFKC/SASLprep
+     * here would lock out any operator whose password changes under normalisation (e.g. full-width
+     * characters). The name is kept for its callers.
      */
-    fun normalizePassword(password: String): ByteArray =
-        Normalizer.normalize(password, Normalizer.Form.NFKC).toByteArray(Charsets.UTF_8)
+    fun normalizePassword(password: String): ByteArray = password.toByteArray(Charsets.UTF_8)
 
     /** `clientFirstBare` = `n=<escaped username>,r=<client nonce>`. */
     fun clientFirstBare(username: String, clientNonce: String): String =

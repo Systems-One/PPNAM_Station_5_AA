@@ -13,7 +13,10 @@ import org.junit.Test
 import java.math.BigDecimal
 
 class CageWorkflowLoadingTest : CageWorkflowFixture() {
-    private val scanTagFirst = Notice("Scan the cage tag before each Pack", Notice.Tone.WARNING)
+    private val scanTagFirst = Refusal(
+        "Do NOT load this Pack yet", "Scan the cage tag first, then scan this Pack again.",
+        "local_cage_scan_required", AfterRefusal.STAY,
+    )
 
     @Before fun setUp() = signIn()
 
@@ -58,16 +61,42 @@ class CageWorkflowLoadingTest : CageWorkflowFixture() {
         assertFalse(wf.state.sending)
     }
 
-    @Test fun qrWithoutCageShowsNotice() {
+    @Test fun qrWithoutCageShowsRefusal() {
         val effects = wf.onQr(validQr)
         assertTrue(publishes(effects).isEmpty())
         assertTrue(effects.contains(Effect.ErrorFeedback))
         assertNull(outbox.load())
-        assertEquals(scanTagFirst, wf.state.notice)
+        assertEquals(scanTagFirst, wf.state.refusal)
+        assertNull(wf.state.notice)
+    }
+
+    @Test fun unarmedQrRefusalBlocksScansUntilDismissed() {
+        wf.onQr(validQr)
+        assertTrue(wf.onRfid("E200ABC").isEmpty()) // blocked behind the refusal
+        assertNull(outbox.load())
+        wf.onDismissRefusal()
+        assertNull(wf.state.refusal)
+        assertEquals(CageScreen.Idle, wf.state.screen) // STAY
+        assertEquals(RequestIntent.SELECT, publishes(wf.onRfid("E200ABC")).single().request.intent)
+    }
+
+    @Test fun unarmedQrOnLoadingReplacesNoticeWithRefusal() {
+        toLoading()
+        clockMs += 120_000
+        wf.onArmExpired()
+        assertNotNull(wf.state.notice)
+        val effects = wf.onQr(validQr)
+        assertEquals(listOf<Effect>(Effect.ErrorFeedback), effects)
+        assertEquals(scanTagFirst, wf.state.refusal)
+        assertNull(wf.state.notice)
+        assertEquals("CAGE-007", loading.load.cageId)
+        assertNull(outbox.load())
     }
 
     @Test fun acceptedScanClearsNotice() {
-        wf.onQr(validQr)
+        toLoading()
+        clockMs += 120_000
+        wf.onArmExpired()
         assertNotNull(wf.state.notice)
         wf.onRfid("505055AAAA") // ignored scan keeps the notice
         assertNotNull(wf.state.notice)
@@ -100,8 +129,8 @@ class CageWorkflowLoadingTest : CageWorkflowFixture() {
         assertTrue(publishes(effects).isEmpty())
         assertTrue(effects.contains(Effect.ErrorFeedback))
         assertNull(outbox.load())
-        assertEquals(scanTagFirst, wf.state.notice)
-        assertNull(wf.state.refusal)
+        assertEquals(scanTagFirst, wf.state.refusal)
+        assertNull(wf.state.notice)
         assertNull(loading.armExpiresAtMs)
     }
 
@@ -123,7 +152,7 @@ class CageWorkflowLoadingTest : CageWorkflowFixture() {
         assertNull(loading.armExpiresAtMs)
         val qr = wf.onQr(validQr)
         assertTrue(publishes(qr).isEmpty())
-        assertEquals(scanTagFirst, wf.state.notice)
+        assertEquals(scanTagFirst, wf.state.refusal)
     }
 
     @Test fun sameCageRescanReArms() {
@@ -212,7 +241,7 @@ class CageWorkflowLoadingTest : CageWorkflowFixture() {
         assertNull(loading.armExpiresAtMs)
         wf.onDismissRefusal()
         assertTrue(publishes(wf.onQr("510019399,O,B10")).isEmpty())
-        assertEquals(scanTagFirst, wf.state.notice)
+        assertEquals(scanTagFirst, wf.state.refusal)
     }
 
     @Test fun armExpiryDisarms() {
@@ -239,7 +268,7 @@ class CageWorkflowLoadingTest : CageWorkflowFixture() {
         val effects = wf.onQr(validQr)
         assertTrue(publishes(effects).isEmpty())
         assertTrue(effects.contains(Effect.ErrorFeedback))
-        assertEquals(scanTagFirst, wf.state.notice)
+        assertEquals(scanTagFirst, wf.state.refusal)
         assertNull(loading.armExpiresAtMs)
     }
 
@@ -270,7 +299,70 @@ class CageWorkflowLoadingTest : CageWorkflowFixture() {
         toLoading(packs = listOf("B1", "B9"))
         wf.onQr(validQr)
         wf.onResponse(allocatedAnswer(packCount = 2, totalKg = "50.4", kg = "25.0"))
-        assertEquals(listOf("B9", "B1"), loading.packs.map { it.bagId })
+        assertEquals(listOf("B1", "B9"), loading.packs.map { it.bagId })
+    }
+
+    private val alreadyInCage = Notice("B9 is already in this cage.", Notice.Tone.INFO)
+
+    /** Adds B9 (accepted, refreshed), then re-arms the same cage; lastPack is B9. */
+    private fun afterFirstPack() {
+        toLoading()
+        wf.onQr(validQr)
+        wf.onResponse(allocatedAnswer())
+        wf.onResponse(accepted("""{"accepted":true,"isActive":true,"load":${loadJson("CAGE-007", 3, "75.5")}}""")
+            .put("packs", packsArray(listOf("B9", "B1", "B2"))))
+        wf.onRfid("TAG-CAGE-007")
+        wf.onResponse(selectArmed("CAGE-007", 3, "75.5"))
+    }
+
+    @Test fun rescanOfPackInShownListIsNotANewPlacement() {
+        afterFirstPack()
+        wf.onQr("510019399,O,B1")
+        val effects = wf.onResponse(allocatedAnswer(bagId = "B1", packCount = 3, totalKg = "75.5", kg = "25.0"))
+        assertFalse(effects.contains(Effect.SuccessFeedback))
+        assertEquals(Notice("B1 is already in this cage.", Notice.Tone.INFO), wf.state.notice)
+        assertEquals("B9", loading.lastPack?.bagId) // unchanged
+        assertEquals(RequestIntent.READ_LOAD, publishes(effects).single().request.intent) // still refreshes
+        assertEquals(listOf("B9", "B1", "B2"), loading.packs.map { it.bagId })
+        // The notice survives the refresh answer.
+        wf.onResponse(accepted("""{"accepted":true,"isActive":true,"load":${loadJson("CAGE-007", 3, "75.5")}}""")
+            .put("packs", packsArray(listOf("B9", "B1", "B2"))))
+        assertEquals(Notice("B1 is already in this cage.", Notice.Tone.INFO), wf.state.notice)
+        assertEquals("B9", loading.lastPack?.bagId)
+    }
+
+    @Test fun packCountNotIncreasedIsNotANewPlacement() {
+        // The select reply carries no packs, so the shown list may not hold the Pack yet.
+        toLoadingUnarmed(packs = emptyList())
+        wf.onRfid("TAG-CAGE-007")
+        wf.onResponse(selectArmed("CAGE-007", 3, "75.5"))
+        wf.onQr(validQr)
+        val effects = wf.onResponse(allocatedAnswer(packCount = 3, totalKg = "75.5"))
+        assertFalse(effects.contains(Effect.SuccessFeedback))
+        assertEquals(alreadyInCage, wf.state.notice)
+        assertNull(loading.lastPack)
+        assertEquals(RequestIntent.READ_LOAD, publishes(effects).single().request.intent)
+    }
+
+    @Test fun alreadyAllocatedFlagIsNotANewPlacement() {
+        toLoadingUnarmed(packs = emptyList())
+        wf.onRfid("TAG-CAGE-007")
+        wf.onResponse(selectArmed("CAGE-007", 3, "75.5"))
+        wf.onQr(validQr)
+        val effects = wf.onResponse(allocatedAnswer(packCount = 4, totalKg = "100.6").put("alreadyAllocated", true))
+        assertFalse(effects.contains(Effect.SuccessFeedback))
+        assertEquals(alreadyInCage, wf.state.notice)
+        assertNull(loading.lastPack)
+        assertEquals(4, loading.load.packCount) // the station's figures are still shown
+    }
+
+    @Test fun newPackAfterRescanStillSucceeds() {
+        afterFirstPack()
+        wf.onQr("510019399,O,B10")
+        val effects = wf.onResponse(allocatedAnswer(bagId = "B10", packCount = 4, totalKg = "100.6"))
+        assertEquals(Effect.SuccessFeedback, effects.first())
+        assertNull(wf.state.notice)
+        assertEquals("B10", loading.lastPack?.bagId)
     }
 
     @Test fun qrWhileSendingIsIgnored() {

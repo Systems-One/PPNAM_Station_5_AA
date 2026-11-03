@@ -256,11 +256,16 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
         wf.onResponse(accepted("""{"accepted":true,"load":${loadJson("CAGE-007", 2, "50.4", status = "Completed")}}"""))
     }
 
-    @Test fun completedQrShowsScanCageNotice() {
+    @Test fun completedQrShowsScanCageRefusal() {
         toCompleted()
-        assertTrue(publishes(wf.onQr(validQr)).isEmpty())
-        assertEquals("Scan the cage tag before each Pack", wf.state.notice?.text)
+        val effects = wf.onQr(validQr)
+        assertTrue(publishes(effects).isEmpty())
+        assertTrue(effects.contains(Effect.ErrorFeedback))
+        assertEquals("local_cage_scan_required", wf.state.refusal?.code)
+        assertEquals("Do NOT load this Pack yet", wf.state.refusal?.headline)
         assertNull(outbox.load())
+        wf.onDismissRefusal()
+        assertTrue(wf.state.screen is CageScreen.Completed) // STAY
     }
 
     @Test fun completedRfidSelectsAnyCage() {
@@ -322,12 +327,12 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
         wf.onRfid("TAG-X")
         wf.onResponse(rejected("unknown_cage"))
         wf.onDismissRefusal()
-        // Idle: a QR shows a notice; blank scans leave it alone
+        // Idle: a QR shows the scan-the-cage-tag refusal; blank scans leave it alone
         wf.onQr(validQr)
-        val notice = wf.state.notice
-        assertEquals("Scan the cage tag before each Pack", notice?.text)
+        val refusal = wf.state.refusal
+        assertEquals("local_cage_scan_required", refusal?.code)
         wf.onQr("  ")
         wf.onRfid(" ")
-        assertEquals(notice, wf.state.notice)
+        assertEquals(refusal, wf.state.refusal)
     }
 }
