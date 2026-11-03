@@ -104,8 +104,19 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Dashboard content: Station 5 defines no workflow tabs yet (allowedTabs gating is
-         fail-closed), so instead of an empty tile grid the operator sees why. -->
+    <!-- Cage Loading: the station's single workflow, shown when allowedTabs has cage_loading -->
+    <include
+        android:id="@+id/cage"
+        layout="@layout/view_cage_loading"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/cardHeader" />
+
+    <!-- Fail-closed fallback: an operator whose allowedTabs lack cage_loading sees why there
+         is nothing to do instead of the Cage Loading screen. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cardNoWorkflows"
         android:layout_width="0dp"
@@ -120,7 +131,8 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/cardHeader"
         app:strokeColor="@color/border_primary"
-        app:strokeWidth="1dp">
+        app:strokeWidth="1dp"
+        android:visibility="gone">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -158,6 +170,71 @@
                 android:textSize="15sp" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
+
+    <!-- Cage refusal: full-screen stop (spec §4.5). Scanning stays blocked until Got it. -->
+    <LinearLayout
+        android:id="@+id/layoutRefusal"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/bg_cage_refusal"
+        android:clickable="true"
+        android:elevation="8dp"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:importantForAccessibility="no"
+            android:text="✕"
+            android:textColor="@color/danger"
+            android:textSize="96sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvRefusalHeadline"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textAlignment="center"
+            android:textColor="@color/text_primary"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            tools:text="Do NOT load this Pack" />
+
+        <TextView
+            android:id="@+id/tvRefusalDetail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:textAlignment="center"
+            android:textColor="@color/text_primary"
+            android:textSize="18sp"
+            tools:text="This Pack hasn't been weighed. Take it back to the weigh station." />
+
+        <TextView
+            android:id="@+id/tvRefusalCode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textColor="@color/text_muted"
+            android:textSize="13sp"
+            tools:text="Code: pack_not_found" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRefusalGotIt"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_marginTop="32dp"
+            android:backgroundTint="@color/danger"
+            android:text="@string/cage_got_it"
+            android:textColor="@color/text_primary"
+            android:textSize="18sp" />
+    </LinearLayout>
 
     <!-- Station Offline Overlay -->
     <androidx.constraintlayout.widget.ConstraintLayout

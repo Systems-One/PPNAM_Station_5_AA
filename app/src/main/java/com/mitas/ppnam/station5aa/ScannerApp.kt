@@ -8,11 +8,16 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import com.mitas.ppnam.station5aa.cage.CageController
 
 class ScannerApp : Application() {
 
+    companion object {
+        /** RFID tag that opens Settings from any screen; never treated as a cage tag. */
+        const val SETTINGS_RFID = "E28011700000021B2F6E9827"
+    }
+
     private var currentActivity: Activity? = null
-    private val SETTINGS_RFID = "E28011700000021B2F6E9827"
 
     private val rfidShortcutReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -63,6 +68,9 @@ class ScannerApp : Application() {
 
         // Inactivity sign-out with a reason on Login (UI audit group (j), from Station 1).
         SessionGuard.install(this)
+
+        // Cage loading: owns the workflow, its outbox retries and the response subscription.
+        CageController.install(this)
 
         mqtt.addStationStatusListener { online ->
             if (!online) {
