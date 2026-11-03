@@ -41,6 +41,15 @@
 | D7 | Completion sheet stayed tappable above the offline screen | Hidden while offline, restored after |
 | D8 | Notices could be off-screen when scrolled | Scroll to top on new notice |
 
+## Final fix wave (commit `6cb1244`), verified on the C72
+
+- A scan while "Sending…" now beeps and shows "Wait for Sending… to finish, then scan again." (nothing sent).
+- The station-offline screen starts below the header, so sign-out and Settings stay reachable.
+
+## Observation for the desktop owner
+
+While the station is paused (`processing_paused`), an allocation still consumes the cage-tag arm (the desktop's catch block calls `DiscardPendingScan`), so the identical retry after resume returns `cage_scan_required`, although contract §6 describes `processing_paused` as transient with identical-byte retry. The app handles this safely (full-screen "Scan the cage tag first"); the contract or desktop should be aligned.
+
 ## Not covered by this simulation (still needed at the site)
 
 - The real Station 5 desktop, SQL, SAP Receipt from Production and manifest printing (the simulator only models their states).
