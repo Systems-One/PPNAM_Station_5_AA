@@ -86,11 +86,15 @@ Every response is JSON. Examples use curl from Git Bash:
 curl -s localhost:8787/state                     # station flags, cages, loads + packs, Packs, sessions (no secrets)
 curl -s localhost:8787/log                       # last 200 request/response summaries
 curl -s -X POST localhost:8787/reset             # reseed everything and forget scans/tokens/challenges
-curl -s -X POST localhost:8787/station/offline   # retained "offline" + stop answering requests
-curl -s -X POST localhost:8787/station/online    # retained "online" + answer again
+curl -s -X POST localhost:8787/station/offline   # retained "offline"; requests are HELD (not answered, not dropped)
+curl -s -X POST localhost:8787/station/online    # retained "online", then the held requests are processed in
+                                                 # arrival order at the current clock (>5 min old -> request_expired,
+                                                 # exact retries of answered ones -> isDuplicate:true)
 curl -s -X POST localhost:8787/drop-next-reply   # next reply is not published, but it is stored:
                                                  # an identical-bytes retry gets it with isDuplicate:true
-curl -s -X POST localhost:8787/pause             # every new request -> processing_paused (not stored)
+curl -s -X POST localhost:8787/pause             # every request -> processing_paused, checked FIRST (before
+                                                 # envelope checks, replay lookup and timestamp), so even exact
+                                                 # replays get it; no envelope echo, nothing stored
 curl -s -X POST localhost:8787/resume
 curl -s -X POST localhost:8787/restart-memory    # simulate a desktop restart: scan arms, preview tokens
                                                  # and SCRAM challenges/replies are lost; SQL state stays
@@ -107,7 +111,11 @@ Errors: `400` bad body, `404` unknown route, `409` workflow refusal (`{"error": 
 ## Behaviour notes
 
 - Station status: retained raw `online` on `PPNAM/station_5/status` once the broker is up; `offline`
-  on Ctrl+C / SIGTERM or `POST /station/offline`. Clients may not publish that topic.
+  on Ctrl+C / SIGTERM or `POST /station/offline`. Clients may not publish that topic. While offline,
+  valid QoS 1 requests are held like the desktop's persistent broker session (`WithCleanSession(false)`)
+  delivers them on reconnect, up to 1000; `GET /state` shows `station.heldRequests`.
+- SCRAM derives keys from the plain UTF-8 password (no NFKC normalisation), as
+  `Rfc2898DeriveBytes.Pbkdf2(string, ...)` does on the desktop.
 - Requests must be QoS 1, not retained, at most 16,384 bytes, valid UTF-8 JSON objects, depth at most 16,
   with a `messageId`. Anything else, or an unknown device, gets **no reply** (as on the desktop).
 - Replies are QoS 1, retain false, on `PPNAM/station_5/{deviceId}/res/{responseType}`. Unsupported

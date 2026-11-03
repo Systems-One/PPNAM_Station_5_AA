@@ -64,9 +64,13 @@ export async function startBroker({ station, host, port, username, password, log
       return;
     }
     if (!result) {
-      if (!station.flags().online) logger(`station offline: no reply on ${topic}`);
+      if (!station.flags().online) logger(`station offline: holding request on ${topic} (${station.queuedCount()} queued)`);
       return;
     }
+    deliver(result);
+  }
+
+  function deliver(result) {
     if (station.takeDropNextReply()) {
       logger(`drop-next-reply: NOT publishing ${result.topic} (outcome recorded; retry identical bytes to get it with isDuplicate:true)`);
       return;
@@ -104,6 +108,19 @@ export async function startBroker({ station, host, port, username, password, log
       });
     },
     publishStatus: (online) => publish(STATUS_TOPIC, online ? 'online' : 'offline', 1, true),
+    /**
+     * Station going offline publishes retained "offline" and holds requests; coming back publishes
+     * retained "online" and then processes the held requests in arrival order at the current clock.
+     */
+    async setStationOnline(online) {
+      station.setOnline(online);
+      await publish(STATUS_TOPIC, online ? 'online' : 'offline', 1, true);
+      if (!online) return 0;
+      const results = station.drainQueue(now());
+      if (results.length) logger(`station online: processing ${results.length} held request(s)`);
+      for (const r of results) deliver(r);
+      return results.length;
+    },
     async close() {
       await new Promise((resolve) => aedes.close(resolve));
       await new Promise((resolve) => server.close(() => resolve()));

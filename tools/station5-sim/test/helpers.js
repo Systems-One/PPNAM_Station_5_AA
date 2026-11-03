@@ -21,7 +21,7 @@ export function scramClient(username, password) {
     prove(challenge) {
       const clientFinalWithoutProof = `c=biws,r=${challenge.serverNonce}`;
       const authMessage = `${clientFirstBare},${challenge.serverFirstMessage},${clientFinalWithoutProof}`;
-      const salted = crypto.pbkdf2Sync(Buffer.from(password.normalize('NFKC'), 'utf8'),
+      const salted = crypto.pbkdf2Sync(Buffer.from(password, 'utf8'),
         Buffer.from(challenge.salt, 'base64'), challenge.iterations, 32, 'sha256');
       const hmac = (key, data) => crypto.createHmac('sha256', key).update(data).digest();
       const clientKey = hmac(salted, 'Client Key');
@@ -40,7 +40,7 @@ export function scramClient(username, password) {
 export function harness(options = {}) {
   const clock = { ms: options.nowMs ?? T0 };
   const config = { deviceIds: ['HH-1', 'HH-2'], scramIterations: 4096, allowMixedOuterCodes: true, ...options.config };
-  const store = createStore({ iterations: config.scramIterations });
+  const store = createStore({ iterations: config.scramIterations, seed: options.seed });
   store.reset(clock.ms);
   const log = [];
   const station = createStation({ store, config, log: (entry) => log.push(entry) });

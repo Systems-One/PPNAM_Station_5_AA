@@ -14,6 +14,7 @@ const MAX_BYTES = 16384;
 const SCAN_MS = 2 * 60_000;
 const CONFIRM_MS = 2 * 60_000;
 const AUTH_REPLY_MS = 60_000;
+const MAX_QUEUED = 1000;
 
 const RESPONSE_TYPES = {
   scram_start_requested: 'scram_challenge',
@@ -72,6 +73,7 @@ export function createStation({ store, config, log = () => {} }) {
   let cageScans = new Map(); // session -> { scanId, loadId, deviceId, untilMs }
   const seenDevices = new Set();
   const flags = { online: true, paused: false, dropNextReply: false };
+  const queued = []; // requests held while the station is offline, in arrival order
 
   function deviceAllowed(device) {
     if (config.deviceIds === '*' || (Array.isArray(config.deviceIds) && config.deviceIds.includes('*'))) {
@@ -172,7 +174,12 @@ export function createStation({ store, config, log = () => {} }) {
     // RouteIncomingMessage: requests must be QoS 1, not retained, at most 16 KiB.
     if (topic === `${ROOT}/status`) return null;
     if (meta?.retain || meta?.qos !== 1) return null;
-    if (!flags.online) return null; // the desktop is "down": nothing answers
+    if (!flags.online) {
+      // The desktop's broker session is persistent (WithCleanSession(false)): while it is away the
+      // broker holds QoS 1 requests and delivers them in order when it reconnects.
+      if (queued.length < MAX_QUEUED) queued.push({ topic, payload, meta: { qos: meta.qos, retain: meta.retain } });
+      return null;
+    }
     const started = performance.now();
     const parts = topic.split('/');
     if (parts.length !== 5 || parts[0] !== 'PPNAM' || parts[1] !== 'station_5' || parts[3] !== 'req' || !deviceAllowed(parts[2])) return null;
@@ -205,6 +212,9 @@ export function createStation({ store, config, log = () => {} }) {
     };
 
     try {
+      // processing.Enter() is the first statement of the desktop's try: a paused station refuses
+      // before envelope checks, the auth cache, the replay lookup/reservation and the timestamp.
+      if (flags.paused) throw new WorkflowError('processing_paused', 'Station 5 settings are being changed. Retry shortly.');
       const names = parsed.keys;
       if (new Set(names.map((n) => n.toUpperCase())).size !== names.length ||
           names.some((n) => n.toLowerCase() === 'password' || n.toLowerCase() === 'managerpassword'))
@@ -225,7 +235,6 @@ export function createStation({ store, config, log = () => {} }) {
       }
       const ts = parseStamp(S(root, 'timestampUtc'));
       if (ts === null || Math.abs(received - ts) / 60_000 > 5) throw new WorkflowError('request_expired', 'Send a new request with the current UTC time.');
-      if (flags.paused) throw new WorkflowError('processing_paused', 'Station 5 settings are being changed. Retry shortly.');
       if (authRequest) {
         if (S(root, 'purpose') !== 'login') throw new WorkflowError('invalid_purpose', 'Use the Station 5 Manager QC screen for approval.');
         if (type === 'scram_start_requested') {
@@ -344,6 +353,18 @@ export function createStation({ store, config, log = () => {} }) {
     handle,
     clearMemory,
     setOnline: (v) => { flags.online = !!v; },
+    /** Processes requests held while offline, in arrival order, at the current clock. Call after setOnline(true). */
+    drainQueue(nowMs) {
+      const out = [];
+      while (flags.online && queued.length > 0) {
+        const q = queued.shift();
+        let r = null;
+        try { r = handle(q.topic, q.payload, q.meta, nowMs); } catch { /* not acknowledged, as on the desktop */ }
+        if (r) out.push(r);
+      }
+      return out;
+    },
+    queuedCount: () => queued.length,
     setPaused: (v) => { flags.paused = !!v; },
     armDropNextReply: () => { flags.dropNextReply = true; },
     takeDropNextReply: () => { const d = flags.dropNextReply; flags.dropNextReply = false; return d; },
