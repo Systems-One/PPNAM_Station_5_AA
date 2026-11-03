@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Contract v3.2.0 §4.5: display-only operator directory for the login dropdown. */
+/** Display-only operator directory (not yet in MQTT_CONTRACT; Phase 2, spec §11). */
 class OperatorListCodecTest {
 
     private val response = JSONObject(

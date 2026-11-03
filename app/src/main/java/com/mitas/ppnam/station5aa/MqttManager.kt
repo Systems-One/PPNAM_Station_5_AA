@@ -62,6 +62,16 @@ class MqttManager private constructor(context: Context) {
     }
 
     companion object {
+        /**
+         * Station status payload (MQTT_CONTRACT §1): trimmed, case-insensitive `online` / `offline`.
+         * Anything else returns null and is ignored.
+         */
+        fun parseStationStatus(payload: String): Boolean? = when (payload.trim().lowercase()) {
+            "online" -> true
+            "offline" -> false
+            else -> null
+        }
+
         @Volatile
         private var INSTANCE: MqttManager? = null
 
@@ -184,8 +194,12 @@ class MqttManager private constructor(context: Context) {
                     // Explicitly publish online status to clear any stale LWT
                     publish(presenceTopic, "online", true, MqttQos.EXACTLY_ONCE)
 
-                    // One subscription captures all of this station's traffic, presence included
-                    subscribeInternal(MqttTopics.stationWildcard())
+                    // MQTT_CONTRACT §1: own responses + station status. Own presence node is
+                    // for PresenceSelfHeal only; the broker ACL may refuse it, which is tolerated.
+                    val ownId = DeviceIdentity.deviceId(appContext)
+                    subscribeInternal(MqttTopics.deviceResponseWildcard(ownId))
+                    subscribeInternal(MqttTopics.stationStatus())
+                    subscribeInternal(MqttTopics.devicePresence(ownId), optional = true)
                     
                     notifyListeners(true)
                 } else {
@@ -215,18 +229,17 @@ class MqttManager private constructor(context: Context) {
         try { old?.disconnect() } catch (e: Exception) { Log.w("MqttManager", "Abandoning client failed", e) }
     }
 
-    private fun subscribeInternal(topicFilter: String) {
+    private fun subscribeInternal(topicFilter: String, optional: Boolean = false) {
         client?.subscribeWith()
             ?.topicFilter(topicFilter)
             ?.qos(MqttQos.AT_LEAST_ONCE)
             ?.callback { publish ->
                 val topic = publish.topic.toString()
                 
-                // Internal filtering for Station Status — retained presence on the station base node
-                if (topic == MqttTopics.stationPresence()) {
-                    val payload = String(publish.payloadAsBytes, Charsets.UTF_8).lowercase()
-                    val online = payload == "online"
-                    if (online != isStationOnline) {
+                // Internal filtering for Station Status — raw text on the station status topic
+                if (topic == MqttTopics.stationStatus()) {
+                    val online = parseStationStatus(String(publish.payloadAsBytes, Charsets.UTF_8))
+                    if (online != null && online != isStationOnline) {
                         isStationOnline = online
                         notifyStationListeners(online)
                     }
@@ -257,7 +270,9 @@ class MqttManager private constructor(context: Context) {
             }
             ?.send()
             ?.whenComplete { _, throwable ->
-                if (throwable != null) {
+                if (throwable != null && optional) {
+                    Log.w("MqttManager", "Optional subscribe refused (continuing): $topicFilter", throwable)
+                } else if (throwable != null) {
                     Log.e("MqttManager", "Internal subscribe failed: $topicFilter", throwable)
                 } else {
                     Log.i("MqttManager", "Internally subscribed to: $topicFilter")
@@ -311,7 +326,8 @@ class MqttManager private constructor(context: Context) {
     }
 
     /**
-     * Subscribe to a specific topic. The MqttManager will filter messages from the global PPNAM/# subscription.
+     * Subscribe to a specific topic. Messages are dispatched from the connect-time subscriptions (own response wildcard, station status,
+     * own presence); there is no global PPNAM/# subscription.
      */
     fun subscribe(topic: String, callback: (Mqtt3Publish) -> Unit) {
         val callbacks = subscriptions.getOrPut(topic) { CopyOnWriteArrayList() }

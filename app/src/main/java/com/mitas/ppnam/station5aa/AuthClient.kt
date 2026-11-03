@@ -11,13 +11,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Operator authentication over MQTT — the shared Station 2 schema 4.1 contract on Station 5's
- * namespaced topics (Station1_MQTT_Contract v3.0.0 §4):
+ * namespaced topics (MQTT_CONTRACT §3, topics §1, envelope §2):
  *
  *   req/scram_start_requested   -> res/scram_challenge
  *   req/scram_proof_requested   -> res/scram_proof_result
  *   req/login_requested         -> res/operator_context
  *   req/reader_logout_requested -> res/operator_context (fire-and-forget here)
- *   req/operator_list_requested -> res/operator_list (login dropdown, v3.2.0 §4.5)
+ *   req/operator_list_requested -> res/operator_list (login dropdown; not yet in MQTT_CONTRACT)
  *
  * Every request carries the schema 4.1 envelope (Schema41). Responses are correlated on
  * inResponseToMessageId and branched on `accepted`/`errorCode` — free-text `reason` is shown
@@ -126,7 +126,11 @@ class AuthClient(context: Context) {
         }
     }
 
-    /** Contract v3.2.0 §4.5: the display-only operator directory for the login dropdown. */
+    /**
+     * The display-only operator directory for the login dropdown: not yet in MQTT_CONTRACT;
+     * Phase 2 (spec §11) adds it. Until then the station rejects the request and the cached
+     * list / typed username is used.
+     */
     fun operatorList(onResult: (Result<List<OperatorEntry>>) -> Unit) {
         val payload = Schema41.envelope(Schema41.newMessageId("operator-list"), deviceId())
         request("operator_list_requested", "operator_list", payload) { result ->
@@ -146,30 +150,8 @@ class AuthClient(context: Context) {
         mainHandler.post { onComplete() }
     }
 
-    private fun buildSession(response: JSONObject): Result<OperatorSession> {
-        val operatorSessionId = response.optString("operatorSessionId", "")
-        val sessionState = response.optString("sessionState", "")
-        return when {
-            operatorSessionId.isBlank() ->
-                failure("Station accepted the login but issued no session")
-            // Accepting an already-closed session would strand the operator in a UI that
-            // rejects every action.
-            sessionState.equals("closed", ignoreCase = true) ->
-                failure("Station closed this session immediately")
-            else -> {
-                val session = OperatorSession(
-                    operatorSessionId = operatorSessionId,
-                    operatorId = response.optString("operatorId", ""),
-                    operatorName = response.optString("displayName", ""),
-                    role = response.optString("role", ""),
-                    allowedActions = response.optJSONArray("allowedActions").toStringList(),
-                    allowedTabs = response.optJSONArray("allowedTabs").toStringList(),
-                )
-                OperatorSessionHolder.set(session)
-                Result.success(session)
-            }
-        }
-    }
+    private fun buildSession(response: JSONObject): Result<OperatorSession> =
+        OperatorSessionCodec.fromProofResult(response).onSuccess { OperatorSessionHolder.set(it) }
 
     /**
      * One schema 4.1 request/response round trip, with a timeout. The response is accepted only
@@ -241,9 +223,4 @@ class AuthClient(context: Context) {
     }
 
     private fun failure(message: String): Result<Nothing> = Result.failure(Exception(message))
-}
-
-private fun org.json.JSONArray?.toStringList(): List<String> {
-    if (this == null) return emptyList()
-    return (0 until length()).mapNotNull { optString(it, "").takeIf { s -> s.isNotBlank() } }
 }

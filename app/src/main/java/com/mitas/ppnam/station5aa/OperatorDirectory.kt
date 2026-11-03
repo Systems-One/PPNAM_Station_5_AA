@@ -4,7 +4,7 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** One row of the login dropdown (contract v3.2.0 §4.5). Display-only. */
+/** One row of the login dropdown (not yet in MQTT_CONTRACT; Phase 2, spec §11 adds it). Display-only. */
 data class OperatorEntry(val username: String, val displayName: String)
 
 object OperatorListCodec {
@@ -40,9 +40,8 @@ object OperatorListCodec {
  * The login screen's operator directory: asks the station for the list and keeps the last
  * accepted one on the device so the dropdown is populated before (or without) an answer.
  *
- * No Station 5 station-side service exists in this tree yet, so nothing answers
- * `PPNAM/station_5/+/req/+`: until one ships the request simply times out, the dropdown stays
- * empty (or shows the last cached list) and a typed username logs in as before, by contract design.
+ * Not yet in MQTT_CONTRACT; Phase 2 (spec §11) adds it. Until then the station rejects the
+ * request and the cached list / typed username is used.
  */
 class OperatorDirectory(context: Context) {
 

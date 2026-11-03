@@ -5,17 +5,21 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /**
- * Per-station namespace per MQTT_CONTRACT.md (2026-08-17 restructure): all Station 5 traffic
- * nests under PPNAM/station_5/..., and presence lives on the base topic nodes — there is no
- * /status sub-topic.
+ * Per-station namespace per MQTT_CONTRACT §1: all Station 5 traffic nests under
+ * PPNAM/station_5/...; the station publishes raw online/offline on PPNAM/station_5/status.
  *
  * This app serves Station 5 only, so the station segment is fixed rather than a parameter.
  */
 class MqttTopicsTest {
 
     @Test
-    fun `station presence is the station base topic`() {
-        assertEquals("PPNAM/station_5", MqttTopics.stationPresence())
+    fun `station status is the status subtopic`() {
+        assertEquals("PPNAM/station_5/status", MqttTopics.stationStatus())
+    }
+
+    @Test
+    fun `device response wildcard covers all of this devices responses`() {
+        assertEquals("PPNAM/station_5/scanner_ab12/res/+", MqttTopics.deviceResponseWildcard("scanner_ab12"))
     }
 
     @Test
@@ -40,19 +44,6 @@ class MqttTopicsTest {
     }
 
     @Test
-    fun `station broadcast goes out under the station res tree`() {
-        assertEquals(
-            "PPNAM/station_5/res/sap_products_response",
-            MqttTopics.stationBroadcast("sap_products_response")
-        )
-    }
-
-    @Test
-    fun `station wildcard captures all station traffic`() {
-        assertEquals("PPNAM/station_5/#", MqttTopics.stationWildcard())
-    }
-
-    @Test
     fun `a deviceId containing a topic separator is rejected`() {
         assertThrows(IllegalArgumentException::class.java) {
             MqttTopics.deviceRequest("scanner/1", "assignment")
@@ -69,7 +60,7 @@ class MqttTopicsTest {
     @Test
     fun `a blank suffix is rejected`() {
         assertThrows(IllegalArgumentException::class.java) {
-            MqttTopics.stationBroadcast(" ")
+            MqttTopics.deviceResponse("scanner_1", " ")
         }
     }
 }

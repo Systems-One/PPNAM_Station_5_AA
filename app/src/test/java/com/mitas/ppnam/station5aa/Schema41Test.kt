@@ -9,7 +9,7 @@ import org.junit.Test
 import java.time.Instant
 
 /**
- * Schema 4.1 authentication envelope per Station1_MQTT_Contract v3.0.0 §4.1-§4.2: exact
+ * Schema 4.1 authentication envelope per MQTT_CONTRACT §2-§3: exact
  * six-fractional-digit timestamps, response correlation on inResponseToMessageId, and
  * branching on `accepted`/`errorCode` — never on free-text reason.
  */
