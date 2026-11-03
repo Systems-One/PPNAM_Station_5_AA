@@ -365,13 +365,13 @@ class CageWorkflowLoadingTest : CageWorkflowFixture() {
         assertEquals("B10", loading.lastPack?.bagId)
     }
 
-    @Test fun qrWhileSendingIsIgnored() {
+    @Test fun qrWhileSendingSendsNothingMore() {
         toLoading()
         wf.onQr(validQr)
         val first = outbox.load()
-        assertTrue(wf.onQr("510019399,O,B10").isEmpty())
+        assertEquals(listOf<Effect>(Effect.ErrorFeedback), wf.onQr("510019399,O,B10"))
         assertSame(first, outbox.load())
-        assertTrue(wf.onRfid("E200ABC").isEmpty())
+        assertEquals(listOf<Effect>(Effect.ErrorFeedback), wf.onRfid("E200ABC"))
         assertSame(first, outbox.load())
     }
 

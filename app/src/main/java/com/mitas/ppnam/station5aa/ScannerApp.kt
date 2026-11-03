@@ -81,7 +81,8 @@ class ScannerApp : Application() {
 
     private fun checkStationStatus(activity: Activity) {
         val mqtt = MqttManager.getInstance(this)
-        // The offline overlay lives on MainActivity, which requires a session — with no operator
+        // The offline overlay lives on MainActivity (below its header, so sign-out and Settings
+        // stay reachable), which requires a session — with no operator
         // logged in, bouncing LoginActivity (or Settings under it) to MainActivity would just
         // bounce straight back and loop.
         if (OperatorSessionHolder.session == null) return

@@ -85,14 +85,16 @@ class CageWorkflow(
 
     fun onRfid(tag: String): List<Effect> = step {
         val session = sessionId
-        if (tag.isBlank() || session == null || !acceptsScans() || UserTagPolicy.isUserTag(tag)) return@step emptyList()
+        if (tag.isBlank() || session == null || UserTagPolicy.isUserTag(tag)) return@step emptyList()
+        if (!acceptsScans()) return@step scanWhileSending()
         state = state.copy(notice = null)
         send(requests.select(session, tag.trim()))
     }
 
     fun onQr(scanned: String): List<Effect> = step {
         val session = sessionId
-        if (scanned.isBlank() || session == null || !acceptsScans()) return@step emptyList()
+        if (scanned.isBlank() || session == null) return@step emptyList()
+        if (!acceptsScans()) return@step scanWhileSending()
         val screen = state.screen
         if (screen !is CageScreen.Loading || !isArmed(screen)) {
             // One cage tag arms exactly one Pack: a QR without a live arm is never sent. It is a
@@ -457,6 +459,14 @@ class CageWorkflow(
         return !s.sending && s.refusal == null && s.stationOnline && s.screen !is CageScreen.Preview
     }
 
+    /** A scan that can't be taken: beeps and warns only when it is "Sending…" alone that blocks it; otherwise silent. */
+    private fun scanWhileSending(): List<Effect> {
+        val s = state
+        if (!s.sending || s.refusal != null || !s.stationOnline || s.screen is CageScreen.Preview) return emptyList()
+        state = s.copy(notice = Notice(WAIT_SENDING, Notice.Tone.WARNING))
+        return listOf(Effect.ErrorFeedback)
+    }
+
     private fun isArmed(screen: CageScreen.Loading): Boolean {
         val until = screen.armExpiresAtMs ?: return false
         return nowMs() < until
@@ -512,6 +522,7 @@ class CageWorkflow(
         const val MESSAGE_ID_CONFLICT = "message_id_conflict"
         const val CONFIRM_COMPLETION = "confirm_completion"
         const val SUMMARY_EXPIRED = "Summary expired — tap Complete cage again"
+        const val WAIT_SENDING = "Wait for Sending… to finish, then scan again."
         const val RECOVERY_FAILED = "Couldn't confirm the last scan. Rescan the cage tag."
         const val CLOCK_WINDOW_MS = 300_000L
         val CLOCK_REFUSAL = Refusal(
