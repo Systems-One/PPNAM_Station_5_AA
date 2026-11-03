@@ -16,7 +16,14 @@
     <string name="cage_scan_cage_tag">Scan a cage tag</string>
     <string name="cage_loading_label">LOADING CAGE</string>
     <string name="cage_job_line">Job %1$s · %2$s</string>
-    <string name="cage_tile_packs">Packs</string>
+    <plurals name="cage_tile_packs">
+        <item quantity="one">Pack</item>
+        <item quantity="other">Packs</item>
+    </plurals>
+    <plurals name="cage_pack_count">
+        <item quantity="one">%d Pack</item>
+        <item quantity="other">%d Packs</item>
+    </plurals>
     <string name="cage_tile_kg">kg</string>
     <string name="cage_kg_value">%1$s kg</string>
     <string name="cage_last_pack">✓ Added %1$s · %2$s kg · %3$s</string>
@@ -31,13 +38,14 @@
     <string name="cage_packs_header">Packs in this cage</string>
     <string name="cage_sending">Sending…</string>
     <string name="cage_complete_title">Complete %1$s?</string>
-    <string name="cage_packs_kg">%1$d Packs · %2$s kg</string>
+    <!-- %1$s is cage_pack_count, so "1 Pack" / "2 Packs" -->
+    <string name="cage_packs_kg">%1$s · %2$s kg</string>
     <string name="cage_complete_warning">Once completed, no more Packs can be added.</string>
     <string name="cage_keep_loading">Keep loading</string>
     <string name="cage_complete_cage">Complete cage</string>
     <string name="cage_expires_in">Summary expires in %1$d:%2$02d</string>
-    <string name="cage_completed_title">✓ %1$s completed · %2$d Packs · %3$s kg</string>
-    <string name="cage_completed_title_time">✓ %1$s completed · %2$d Packs · %3$s kg · %4$s</string>
+    <string name="cage_completed_title">✓ %1$s completed · %2$s · %3$s kg</string>
+    <string name="cage_completed_title_time">✓ %1$s completed · %2$s · %3$s kg · %4$s</string>
     <string name="cage_sap_receipt">SAP receipt: %1$s</string>
     <string name="cage_manifest_print">Manifest print: %1$s</string>
     <string name="cage_completed_note">Completed on the station. SAP and printing are handled by the desktop.</string>

@@ -51,6 +51,9 @@ class MainActivity : SessionActivity() {
     private var previewSheetToken: String? = null
     private var renderedPacks: List<LoadedPack>? = null
 
+    /** Text of the notice last rendered, so only a new notice scrolls the screen to the top. */
+    private var renderedNoticeText: String? = null
+
     private val cageListener: (CageUiState) -> Unit = { render(it) }
 
     /** True between onStart and onStop: the countdown ticker runs only then. */
@@ -296,6 +299,7 @@ class MainActivity : SessionActivity() {
             v.tvBannerJob.isVisible = jobPack != null
             if (jobPack != null) v.tvBannerJob.text = jobLine(jobPack)
             v.tvPackCount.text = load.packCount.toString()
+            v.tvPackCountLabel.text = resources.getQuantityString(R.plurals.cage_tile_packs, load.packCount)
             v.tvTotalKg.text = kg(load.totalKg)
             if (lastPack != null) {
                 v.tvLastPack.text = getString(
@@ -311,9 +315,9 @@ class MainActivity : SessionActivity() {
         if (completed != null) {
             val time = StatusText.completedTime(completed.completedAtUtc)
             v.tvCompletedTitle.text = if (time != null) {
-                getString(R.string.cage_completed_title_time, completed.cageId, completed.packCount, kg(completed.totalKg), time)
+                getString(R.string.cage_completed_title_time, completed.cageId, packCount(completed.packCount), kg(completed.totalKg), time)
             } else {
-                getString(R.string.cage_completed_title, completed.cageId, completed.packCount, kg(completed.totalKg))
+                getString(R.string.cage_completed_title, completed.cageId, packCount(completed.packCount), kg(completed.totalKg))
             }
             v.tvGrv.text = getString(R.string.cage_sap_receipt, StatusText.grv(completed.grvState))
             v.tvPrint.text = getString(R.string.cage_manifest_print, StatusText.print(completed.printState))
@@ -328,8 +332,13 @@ class MainActivity : SessionActivity() {
             binding.tvRefusalCode.text = getString(R.string.cage_refusal_code, refusal.code)
         }
 
-        // The sheet is its own window and would hide the refusal overlay, so it closes for one.
-        if (screen is CageScreen.Preview && refusal == null) showPreviewSheet(screen, s.sending) else dismissPreviewSheet()
+        // The sheet is its own window and would sit above the refusal and station-offline overlays,
+        // so it closes for either; the workflow stays on Preview and the sheet returns once clear.
+        if (screen is CageScreen.Preview && refusal == null && s.stationOnline) {
+            showPreviewSheet(screen, s.sending)
+        } else {
+            dismissPreviewSheet()
+        }
         restartTicker()
     }
 
@@ -343,7 +352,7 @@ class MainActivity : SessionActivity() {
             v.layoutScanPrompt.setBackgroundResource(R.drawable.bg_cage_armed)
             v.tvStepPrompt.text = getString(R.string.cage_step_scan_pack)
             v.tvStepDetail.text = armCountdown(armExpiresAtMs - System.currentTimeMillis())
-            v.tvStepDetail.textSize = 34f
+            v.tvStepDetail.textSize = 28f
             v.tvStepDetail.setTypeface(null, Typeface.BOLD)
             v.tvStepDetail.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
         } else {
@@ -359,8 +368,12 @@ class MainActivity : SessionActivity() {
     private fun renderNotice(notice: Notice?) {
         val tv = binding.cage.tvNotice
         tv.isVisible = notice != null
+        val previousText = renderedNoticeText
+        renderedNoticeText = notice?.text
         if (notice == null) return
         tv.text = notice.text
+        // The notice sits at the top of the scroll view: bring a new one into sight.
+        if (notice.text != previousText) binding.cage.root.post { binding.cage.root.smoothScrollTo(0, 0) }
         val (bg, fg) = when (notice.tone) {
             Notice.Tone.INFO -> R.color.light_blue to R.color.text_primary
             Notice.Tone.SUCCESS -> R.color.light_green to R.color.success
@@ -413,7 +426,7 @@ class MainActivity : SessionActivity() {
         }
         val b = previewSheetBinding ?: return
         b.tvSheetTitle.text = getString(R.string.cage_complete_title, preview.load.cageId)
-        b.tvSheetSummary.text = getString(R.string.cage_packs_kg, preview.load.packCount, kg(preview.load.totalKg))
+        b.tvSheetSummary.text = getString(R.string.cage_packs_kg, packCount(preview.load.packCount), kg(preview.load.totalKg))
         val jobPack = preview.packs.firstOrNull()
         b.tvSheetJob.isVisible = jobPack != null
         if (jobPack != null) b.tvSheetJob.text = jobLine(jobPack)
@@ -433,6 +446,9 @@ class MainActivity : SessionActivity() {
 
     private fun jobLine(pack: LoadedPack): String =
         getString(R.string.cage_job_line, pack.jobCard ?: "—", pack.outerCode)
+
+    /** "1 Pack" / "2 Packs". */
+    private fun packCount(count: Int): String = resources.getQuantityString(R.plurals.cage_pack_count, count, count)
 
     private fun kg(value: BigDecimal): String = String.format(Locale.US, "%.2f", value)
 
