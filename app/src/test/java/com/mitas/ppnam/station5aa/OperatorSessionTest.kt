@@ -5,9 +5,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * allowedTabs gating is fail-closed (MQTT base standard §5): a missing or empty list enables
- * no workflows. Station 5 defines no workflow tabs of its own yet, so canShow must return
- * false for anything until this station's contract defines tabs.
+ * allowedTabs gating is fail-closed (MQTT_CONTRACT §3): a missing or empty list enables
+ * no workflows. Only StationTab.CAGE_LOADING is defined; canShow must return
+ * false for anything the login did not allow.
  */
 class OperatorSessionTest {
 

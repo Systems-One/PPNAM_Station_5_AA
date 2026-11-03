@@ -3,13 +3,12 @@ package com.mitas.ppnam.station5aa
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * The workflows this handheld offers. Wire values arrive in the login response's `allowedTabs`.
- *
- * Station 5 defines NO workflow tabs yet — allowedTabs gating stays fail-closed, so whatever
- * the login response carries, an operator sees no workflows until this station's own contract
- * defines them here.
+ * The workflows this handheld offers. Wire values arrive in the login response's `allowedTabs`
+ * (MQTT_CONTRACT §3). Station 5 defines one tab: cage loading.
  */
-object StationTab
+object StationTab {
+    const val CAGE_LOADING = "cage_loading"
+}
 
 /**
  * The logged-in operator, mirroring Station 2 AA's OperatorSession (data/session). Held in memory
@@ -30,7 +29,7 @@ data class OperatorSession(
      * Whether to OFFER [tab] in the UI. Presentation only — the station re-checks every
      * request server-side (ACTION_NOT_ALLOWED).
      *
-     * Fails CLOSED (contract v3.0.0 §3): a login that arrived without allowedTabs, or with an
+     * Fails CLOSED (MQTT_CONTRACT §3): a login that arrived without allowedTabs, or with an
      * empty list, enables no workflows at all.
      */
     fun canShow(tab: String): Boolean = tab in allowedTabs

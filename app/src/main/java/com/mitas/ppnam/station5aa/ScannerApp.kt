@@ -8,11 +8,16 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import com.mitas.ppnam.station5aa.cage.CageController
 
 class ScannerApp : Application() {
 
+    companion object {
+        /** RFID tag that opens Settings from any screen; never treated as a cage tag. */
+        const val SETTINGS_RFID = "E28011700000021B2F6E9827"
+    }
+
     private var currentActivity: Activity? = null
-    private val SETTINGS_RFID = "E28011700000021B2F6E9827"
 
     private val rfidShortcutReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -64,6 +69,9 @@ class ScannerApp : Application() {
         // Inactivity sign-out with a reason on Login (UI audit group (j), from Station 1).
         SessionGuard.install(this)
 
+        // Cage loading: owns the workflow, its outbox retries and the response subscription.
+        CageController.install(this)
+
         mqtt.addStationStatusListener { online ->
             if (!online) {
                 currentActivity?.let { checkStationStatus(it) }
@@ -73,11 +81,14 @@ class ScannerApp : Application() {
 
     private fun checkStationStatus(activity: Activity) {
         val mqtt = MqttManager.getInstance(this)
-        // The offline overlay lives on MainActivity, which requires a session — with no operator
+        // The offline overlay lives on MainActivity (below its header, so sign-out and Settings
+        // stay reachable), which requires a session — with no operator
         // logged in, bouncing LoginActivity (or Settings under it) to MainActivity would just
         // bounce straight back and loop.
         if (OperatorSessionHolder.session == null) return
-        if (!mqtt.isStationOnline && activity !is MainActivity) {
+        // Settings stays reachable: with the broker down (station status then reads offline) it is
+        // where the broker connection gets fixed.
+        if (!mqtt.isStationOnline && activity !is MainActivity && activity !is SettingsActivity) {
             val intent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
             }

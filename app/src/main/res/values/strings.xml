@@ -7,9 +7,53 @@
     <string name="error_fill_all_fields">Please fill in all fields</string>
     <string name="cd_settings">Settings</string>
 
-    <!-- Dashboard: Station 5 defines no workflow tabs yet (fail-closed allowedTabs gating) -->
+    <!-- Dashboard fallback: shown instead of Cage Loading when the operator's allowedTabs
+         lack cage_loading (fail-closed gating) -->
     <string name="no_workflows_title">No workflows</string>
     <string name="no_workflows_message">No workflows are enabled for this station yet.</string>
+
+    <!-- Cage Loading -->
+    <string name="cage_scan_cage_tag">Scan a cage tag</string>
+    <string name="cage_loading_label">LOADING CAGE</string>
+    <string name="cage_job_line">Job %1$s · %2$s</string>
+    <plurals name="cage_tile_packs">
+        <item quantity="one">Pack</item>
+        <item quantity="other">Packs</item>
+    </plurals>
+    <plurals name="cage_pack_count">
+        <item quantity="one">%d Pack</item>
+        <item quantity="other">%d Packs</item>
+    </plurals>
+    <string name="cage_tile_kg">kg</string>
+    <string name="cage_kg_value">%1$s kg</string>
+    <string name="cage_last_pack">✓ Added %1$s · %2$s kg · %3$s</string>
+    <string name="cage_disposition_pass">Pass</string>
+    <string name="cage_disposition_manager_accepted">Manager accepted</string>
+    <!-- Step prompt (spec §4.2): one cage tag arms exactly one Pack -->
+    <string name="cage_step_scan_tag">Scan the cage tag</string>
+    <string name="cage_step_scan_tag_detail">Scan the cage tag before each Pack</string>
+    <string name="cage_step_scan_pack">Scan ONE Pack QR now</string>
+    <string name="cage_arm_countdown">%1$d:%2$02d</string>
+    <string name="cage_packs_pending">Pack list updates after the next Pack</string>
+    <string name="cage_packs_header">Packs in this cage</string>
+    <string name="cage_sending">Sending…</string>
+    <string name="cage_complete_title">Complete %1$s?</string>
+    <!-- %1$s is cage_pack_count, so "1 Pack" / "2 Packs" -->
+    <string name="cage_packs_kg">%1$s · %2$s kg</string>
+    <string name="cage_complete_warning">Once completed, no more Packs can be added.</string>
+    <string name="cage_keep_loading">Keep loading</string>
+    <string name="cage_complete_cage">Complete cage</string>
+    <string name="cage_expires_in">Summary expires in %1$d:%2$02d</string>
+    <string name="cage_completed_title">✓ %1$s completed · %2$s · %3$s kg</string>
+    <string name="cage_completed_title_time">✓ %1$s completed · %2$s · %3$s kg · %4$s</string>
+    <string name="cage_sap_receipt">SAP receipt: %1$s</string>
+    <string name="cage_manifest_print">Manifest print: %1$s</string>
+    <string name="cage_completed_note">Completed on the station. SAP and printing are handled by the desktop.</string>
+    <string name="cage_refresh">Refresh</string>
+    <string name="cage_scan_next_cage">Scan the next cage tag</string>
+    <string name="cage_got_it">Got it</string>
+    <string name="cage_refusal_code">Code: %1$s</string>
+    <string name="logout_pending_message">A scan is still being sent. Sign out anyway?</string>
 
     <!-- Login / session -->
     <string name="title_log_in">Log In</string>
@@ -76,8 +120,8 @@
     <string name="diag_station_offline">Offline</string>
     <string name="diag_station_unknown">Unknown</string>
 
-    <string name="station_offline_title">MAIN STATION OFFLINE</string>
-    <string name="station_offline_message">Please wait for the main station to reconnect...</string>
+    <string name="station_offline_title">Station offline — don\'t load Packs</string>
+    <string name="station_offline_message">Waiting for the Station 5 desktop…</string>
 
     <!-- Forced sign-out reason shown on Login (UI audit group (j)) -->
     <plurals name="signed_out_inactivity">

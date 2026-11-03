@@ -43,7 +43,7 @@ class LoginActivity : AppCompatActivity() {
         runOnUiThread { binding.connectionPill.setStatus(status) }
     }
 
-    /** Refresh the directory each time the broker link comes up (contract v3.2.0 §4.5). */
+    /** Refresh the directory each time the broker link comes up (operator directory: not yet in MQTT_CONTRACT; Phase 2, spec §11). */
     private val connectionListener: (Boolean) -> Unit = { connected ->
         if (connected) directory.refresh { list -> runOnUiThread { showOperators(list) } }
     }
