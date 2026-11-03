@@ -83,6 +83,8 @@ object CageController {
     fun confirmComplete() = call { it.onConfirmComplete() }
     fun previewExpired() = call { it.onPreviewExpired() }
     fun refreshCompleted() = call { it.onRefreshCompleted() }
+    fun completeCage() = call { it.onCompleteCage() }
+    fun armExpired() = call { it.onArmExpired() }
 
     fun hasPending(): Boolean = workflow?.pending() != null
 

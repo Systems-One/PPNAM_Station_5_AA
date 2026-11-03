@@ -191,6 +191,15 @@ class CageWorkflowLoadingTest : CageWorkflowFixture() {
         assertNull(outbox.load())
     }
 
+    @Test fun readLoadWithOtherBagIdRejectedIsNotTreatedAsPackRefresh() {
+        toLoadingUnarmed()
+        // Only the local pack-refresh marker keeps the screen; any other bagId is an ordinary read.
+        outbox.save(requests.readLoad("s-1", "L-CAGE-007", RequestIntent.READ_LOAD, "B5"))
+        assertTrue(wf.onResponse(rejected("something_odd")).isEmpty())
+        assertSame(CageScreen.Idle, wf.state.screen)
+        assertNull(outbox.load())
+    }
+
     @Test fun allocationRefusedDisarmsNoRead() {
         toLoading()
         wf.onQr(validQr)

@@ -59,8 +59,13 @@ class RefusalCatalogTest {
             "This cage is no longer active on this handheld. Rescan the cage tag.", "cage_not_active", AfterRefusal.TO_IDLE)
         check(RefusalCatalog.forCompletion("cage_locked", "x"), "Cage not available",
             "This cage is already completed.", "cage_locked", AfterRefusal.TO_IDLE)
-        check(RefusalCatalog.forCompletion("completion_blocked", "Station text"), "Cage not completed",
-            "Station text", "completion_blocked", AfterRefusal.STAY)
+    }
+
+    @Test fun completionBlockedAndEmptyCageAskForPacks() {
+        check(RefusalCatalog.forCompletion("completion_blocked", "Station text"), "Cannot complete",
+            "Add Packs before completing.", "completion_blocked", AfterRefusal.STAY)
+        check(RefusalCatalog.forCompletion("empty_cage", "Station text"), "Cannot complete",
+            "Add Packs before completing.", "empty_cage", AfterRefusal.STAY)
     }
 
     @Test fun mixedOuter() = assertEquals("This Pack's outer code doesn't match the cage. Use a matching cage.",

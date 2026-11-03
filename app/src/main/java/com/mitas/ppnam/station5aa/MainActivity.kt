@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -52,22 +53,72 @@ class MainActivity : SessionActivity() {
 
     private val cageListener: (CageUiState) -> Unit = { render(it) }
 
-    /** Ticks once a second while a completion summary is shown; expires it at zero. */
-    private val countdown = object : Runnable {
+    /** True between onStart and onStop: the countdown ticker runs only then. */
+    private var ticking = false
+
+    /** The arm expiry already reported to the workflow, so each arm is expired once. */
+    private var armExpiryReported: Long? = null
+
+    /**
+     * Ticks about once a second between onStart and onStop and drives both countdowns: the
+     * Pack arm on Loading and the completion summary on Preview. Expiry times are device-clock
+     * instants anchored at receipt and measured on the station's clock by the workflow.
+     */
+    private val ticker = object : Runnable {
         override fun run() {
-            val preview = CageController.state.screen as? CageScreen.Preview ?: return
-            val left = preview.expiresAtMs - System.currentTimeMillis() // anchored at receipt, measured on the station clock
-            if (left <= 0) {
-                // Ignored by the workflow while the confirmation is in flight; keep checking until it settles.
-                CageController.previewExpired() // re-renders synchronously, which re-posts this
-                main.removeCallbacks(this)
-                if (CageController.state.screen is CageScreen.Preview) main.postDelayed(this, 1000)
-                return
-            }
-            val secs = ((left + 999) / 1000).toInt()
-            previewSheetBinding?.tvSheetCountdown?.text = getString(R.string.cage_expires_in, secs / 60, secs % 60)
-            main.postDelayed(this, 1000)
+            val delay = tick()
+            // tick() may re-render (expiry), which re-posts this: keep exactly one pending tick.
+            main.removeCallbacks(this)
+            if (ticking) main.postDelayed(this, delay)
         }
+    }
+
+    /** One countdown step; returns the delay to the next one (lands on the next whole second left). */
+    private fun tick(): Long {
+        val s = CageController.state
+        val now = System.currentTimeMillis()
+        when (val screen = s.screen) {
+            is CageScreen.Preview -> {
+                val left = screen.expiresAtMs - now
+                if (left <= 0) {
+                    // Ignored by the workflow while the confirmation is in flight; checked again next tick.
+                    CageController.previewExpired()
+                    return TICK_MS
+                }
+                previewSheetBinding?.tvSheetCountdown?.text = summaryCountdown(left)
+                return untilNextSecond(left)
+            }
+            is CageScreen.Loading -> {
+                val until = screen.armExpiresAtMs ?: return TICK_MS
+                val left = until - now
+                if (left <= 0) {
+                    if (armExpiryReported != until) {
+                        armExpiryReported = until
+                        CageController.armExpired()
+                    }
+                    return TICK_MS
+                }
+                if (!s.sending) binding.cage.tvStepDetail.text = armCountdown(left)
+                return untilNextSecond(left)
+            }
+            else -> return TICK_MS
+        }
+    }
+
+    private fun untilNextSecond(leftMs: Long): Long = ((leftMs - 1) % TICK_MS) + 1
+
+    private fun secondsLeft(leftMs: Long): Int = ((leftMs.coerceAtLeast(0) + 999) / 1000).toInt()
+
+    private fun armCountdown(leftMs: Long): String =
+        secondsLeft(leftMs).let { getString(R.string.cage_arm_countdown, it / 60, it % 60) }
+
+    private fun summaryCountdown(leftMs: Long): String =
+        secondsLeft(leftMs).let { getString(R.string.cage_expires_in, it / 60, it % 60) }
+
+    /** Re-runs the ticker now, so a new countdown starts on its own second boundaries. */
+    private fun restartTicker() {
+        main.removeCallbacks(ticker)
+        if (ticking) main.post(ticker)
     }
 
     private val rfidReceiver = object : BroadcastReceiver() {
@@ -95,18 +146,14 @@ class MainActivity : SessionActivity() {
         }
     }
 
+    /**
+     * Station offline (no retained `online`, or the broker link is down): the overlay covers the
+     * screen and the workflow blocks scans. ScannerApp brings this screen to the front when the
+     * station goes offline while another screen is showing.
+     */
     private val stationStatusListener: (Boolean) -> Unit = { online ->
         runOnUiThread {
-            if (online) {
-                binding.layoutStationOffline.visibility = android.view.View.GONE
-            } else {
-                binding.layoutStationOffline.visibility = android.view.View.VISIBLE
-                // Bring MainActivity to front and clear others
-                val intent = Intent(this, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                }
-                startActivity(intent)
-            }
+            binding.layoutStationOffline.isVisible = !online
         }
     }
 
@@ -175,12 +222,14 @@ class MainActivity : SessionActivity() {
         binding.cardNoWorkflows.isVisible = !cageAllowed
 
         binding.cage.btnRefresh.setOnClickListener { CageController.refreshCompleted() }
+        binding.cage.btnCompleteCage.setOnClickListener { CageController.completeCage() }
         binding.btnRefusalGotIt.setOnClickListener { CageController.dismissRefusal() }
     }
 
     override fun onStart() {
         super.onStart()
         if (!::binding.isInitialized) return
+        ticking = true
         CageController.addListener(cageListener)
         render(CageController.state)
     }
@@ -210,8 +259,9 @@ class MainActivity : SessionActivity() {
     override fun onStop() {
         super.onStop()
         if (!::binding.isInitialized) return
+        ticking = false
         CageController.removeListener(cageListener)
-        main.removeCallbacks(countdown)
+        main.removeCallbacks(ticker)
         dismissPreviewSheet()
     }
 
@@ -222,6 +272,7 @@ class MainActivity : SessionActivity() {
         val screen = s.screen
 
         renderNotice(s.notice)
+        // While a request is in flight scans are ignored: say so where the next step would be.
         v.rowSending.isVisible = s.sending
 
         // Loading and Preview both show the load (Preview dims it under the bottom sheet).
@@ -231,7 +282,12 @@ class MainActivity : SessionActivity() {
             else -> null
         }
         v.tvIdlePrompt.isVisible = screen is CageScreen.Idle
-        listOf(v.cardBanner, v.rowTiles, v.layoutScanPrompt).forEach { it.isVisible = shown != null }
+        listOf(v.cardBanner, v.rowTiles).forEach { it.isVisible = shown != null }
+        val loading = screen as? CageScreen.Loading
+        v.layoutScanPrompt.isVisible = loading != null && !s.sending
+        if (loading != null && !s.sending) renderStepPrompt(loading.armExpiresAtMs)
+        v.btnCompleteCage.isVisible =
+            loading != null && loading.load.isOpen && loading.load.packCount >= 1 && !s.sending
         v.cardLastPack.isVisible = shown?.third != null
         if (shown != null) {
             val (load, packs, lastPack) = shown
@@ -247,14 +303,18 @@ class MainActivity : SessionActivity() {
                 )
             }
         }
-        renderPacks(shown?.second.orEmpty())
+        renderPacks(shown?.second.orEmpty(), shown?.first?.packCount ?: 0)
 
         val completed = (screen as? CageScreen.Completed)?.load
         v.cardCompleted.isVisible = completed != null
         v.tvNextCagePrompt.isVisible = completed != null
         if (completed != null) {
-            v.tvCompletedTitle.text =
+            val time = StatusText.completedTime(completed.completedAtUtc)
+            v.tvCompletedTitle.text = if (time != null) {
+                getString(R.string.cage_completed_title_time, completed.cageId, completed.packCount, kg(completed.totalKg), time)
+            } else {
                 getString(R.string.cage_completed_title, completed.cageId, completed.packCount, kg(completed.totalKg))
+            }
             v.tvGrv.text = getString(R.string.cage_sap_receipt, StatusText.grv(completed.grvState))
             v.tvPrint.text = getString(R.string.cage_manifest_print, StatusText.print(completed.printState))
             v.btnRefresh.isEnabled = !s.sending
@@ -270,8 +330,30 @@ class MainActivity : SessionActivity() {
 
         // The sheet is its own window and would hide the refusal overlay, so it closes for one.
         if (screen is CageScreen.Preview && refusal == null) showPreviewSheet(screen, s.sending) else dismissPreviewSheet()
-        main.removeCallbacks(countdown)
-        if (screen is CageScreen.Preview) main.post(countdown)
+        restartTicker()
+    }
+
+    /**
+     * The one next physical action (spec §4.2). Armed: "Scan ONE Pack QR now" on amber with the
+     * arm's countdown; not armed: "Scan the cage tag" before each Pack.
+     */
+    private fun renderStepPrompt(armExpiresAtMs: Long?) {
+        val v = binding.cage
+        if (armExpiresAtMs != null) {
+            v.layoutScanPrompt.setBackgroundResource(R.drawable.bg_cage_armed)
+            v.tvStepPrompt.text = getString(R.string.cage_step_scan_pack)
+            v.tvStepDetail.text = armCountdown(armExpiresAtMs - System.currentTimeMillis())
+            v.tvStepDetail.textSize = 34f
+            v.tvStepDetail.setTypeface(null, Typeface.BOLD)
+            v.tvStepDetail.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
+        } else {
+            v.layoutScanPrompt.setBackgroundResource(R.drawable.bg_cage_dashed)
+            v.tvStepPrompt.text = getString(R.string.cage_step_scan_tag)
+            v.tvStepDetail.text = getString(R.string.cage_step_scan_tag_detail)
+            v.tvStepDetail.textSize = 15f
+            v.tvStepDetail.setTypeface(null, Typeface.NORMAL)
+            v.tvStepDetail.setTextColor(ContextCompat.getColor(this, R.color.text_muted))
+        }
     }
 
     private fun renderNotice(notice: Notice?) {
@@ -288,10 +370,15 @@ class MainActivity : SessionActivity() {
         tv.setTextColor(ContextCompat.getColor(this, fg))
     }
 
-    /** Packs in the order the workflow holds them (an allocation is prepended: newest first). */
-    private fun renderPacks(packs: List<LoadedPack>) {
+    /**
+     * Packs in the order the workflow holds them (an allocation is prepended: newest first). A
+     * cage-tag reply carries no packs, so a load with Packs may show an empty list until the
+     * refresh after the next accepted Pack.
+     */
+    private fun renderPacks(packs: List<LoadedPack>, packCount: Int) {
         val v = binding.cage
-        v.tvPacksHeader.isVisible = packs.isNotEmpty()
+        v.tvPacksHeader.isVisible = packs.isNotEmpty() || packCount > 0
+        v.tvPacksHeader.setText(if (packs.isNotEmpty()) R.string.cage_packs_header else R.string.cage_packs_pending)
         if (packs == renderedPacks) return
         renderedPacks = packs
         v.packList.removeAllViews()
@@ -331,6 +418,7 @@ class MainActivity : SessionActivity() {
         b.tvSheetJob.isVisible = jobPack != null
         if (jobPack != null) b.tvSheetJob.text = jobLine(jobPack)
         b.tvSheetCountdown.isVisible = true
+        b.tvSheetCountdown.text = summaryCountdown(preview.expiresAtMs - System.currentTimeMillis())
         b.rowSheetSending.isVisible = sending
         b.btnKeepLoading.isEnabled = !sending
         b.btnCompleteCage.isEnabled = !sending
@@ -384,6 +472,10 @@ class MainActivity : SessionActivity() {
             .setPositiveButton(getString(R.string.exit_dialog_close)) { _, _ -> finishAffinity() }
             .setNegativeButton(getString(R.string.exit_dialog_stay), null)
             .show()
+    }
+
+    private companion object {
+        const val TICK_MS = 1000L
     }
 
     override fun onDestroy() {

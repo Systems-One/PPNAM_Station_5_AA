@@ -43,7 +43,13 @@ class MqttManager private constructor(context: Context) {
 
     private val subscriptions = ConcurrentHashMap<String, CopyOnWriteArrayList<(Mqtt3Publish) -> Unit>>()
 
-    var isStationOnline = true
+    /**
+     * True only while connected and the station's retained status reads `online`. Starts false
+     * (nothing heard yet) and drops to false whenever the broker link is lost or cannot be made,
+     * so scans are blocked until the retained `online` is read again after (re)connecting.
+     */
+    @Volatile
+    var isStationOnline = false
         private set
 
     private val settingsRepository = SettingsRepository(appContext)
@@ -52,6 +58,7 @@ class MqttManager private constructor(context: Context) {
         if (gen != generation.get()) return@MqttClientDisconnectedListener // abandoned attempt
         Log.w("MqttManager", "Disconnected from broker: ${context.cause.message}")
         notifyListeners(false)
+        setStationOnline(false) // without the broker the station's status is unknown
         
         // Auto-reconnect logic
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
@@ -205,6 +212,7 @@ class MqttManager private constructor(context: Context) {
                 } else {
                     Log.e("MqttManager", "Connection failed", throwable)
                     notifyListeners(false)
+                    setStationOnline(false)
                     // Retry after delay
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                         connect()
@@ -239,10 +247,7 @@ class MqttManager private constructor(context: Context) {
                 // Internal filtering for Station Status — raw text on the station status topic
                 if (topic == MqttTopics.stationStatus()) {
                     val online = parseStationStatus(String(publish.payloadAsBytes, Charsets.UTF_8))
-                    if (online != null && online != isStationOnline) {
-                        isStationOnline = online
-                        notifyStationListeners(online)
-                    }
+                    if (online != null) setStationOnline(online)
                 }
 
                 // Self-heal: a quick restart lets the previous connection's Last Will land
@@ -283,6 +288,14 @@ class MqttManager private constructor(context: Context) {
     private fun notifyListeners(connected: Boolean) {
         connectionListeners.forEach { it(connected) }
         notifyConnectionStatus()
+    }
+
+    /** Records the station's status and tells listeners, only when it changes. */
+    @Synchronized
+    private fun setStationOnline(online: Boolean) {
+        if (online == isStationOnline) return
+        isStationOnline = online
+        notifyStationListeners(online)
     }
 
     private fun notifyStationListeners(online: Boolean) {

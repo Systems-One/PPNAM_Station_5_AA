@@ -59,6 +59,7 @@ object RefusalCatalog {
         val headline = "Cage not completed"
         return when (code) {
             "message_id_conflict" -> conflict(code)
+            "completion_blocked", "empty_cage" -> Refusal("Cannot complete", "Add Packs before completing.", code, AfterRefusal.STAY)
             "confirmation_expired" -> Refusal(headline, "The summary expired. Tap Complete cage again.", code, AfterRefusal.REFRESH_LOAD)
             "cage_contents_changed" -> Refusal(
                 headline, "Another Pack was added to this cage. Check the new count and tap Complete cage again.",

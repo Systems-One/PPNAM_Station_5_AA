@@ -94,11 +94,21 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
     @Test fun previewRefusedUnknownStaysOnLoading() {
         toLoading()
         wf.onCompleteCage()
-        wf.onResponse(rejected("completion_blocked", "Select an open cage containing at least one Pack."))
-        assertEquals("Select an open cage containing at least one Pack.", wf.state.refusal?.detail)
+        wf.onResponse(rejected("something_new", "Station explains."))
+        assertEquals("Station explains.", wf.state.refusal?.detail)
         wf.onDismissRefusal()
         assertEquals("CAGE-007", loading.load.cageId)
         assertNull(loading.armExpiresAtMs)
+    }
+
+    @Test fun previewRefusedCompletionBlockedAsksForPacks() {
+        toLoading()
+        wf.onCompleteCage()
+        wf.onResponse(rejected("completion_blocked", "Select an open cage containing at least one Pack."))
+        assertEquals("Cannot complete", wf.state.refusal?.headline)
+        assertEquals("Add Packs before completing.", wf.state.refusal?.detail)
+        wf.onDismissRefusal()
+        assertEquals("CAGE-007", loading.load.cageId)
     }
 
     @Test fun rescanActiveCageNeverPreviews() {

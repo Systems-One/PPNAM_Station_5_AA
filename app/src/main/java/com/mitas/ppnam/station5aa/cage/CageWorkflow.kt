@@ -440,7 +440,7 @@ class CageWorkflow(
     }
 
     /** The READ_LOAD sent after an accepted Pack carries the local-only [PACK_REFRESH] marker in bagId (never sent). */
-    private fun isPackRefresh(pending: PendingRequest): Boolean = pending.bagId != null
+    private fun isPackRefresh(pending: PendingRequest): Boolean = pending.bagId == PACK_REFRESH
 
     /** Remaining time of [expiryField] by the station's clock; two minutes when unreadable (the station still enforces it). */
     private fun stationRemainingMs(json: JSONObject, expiryField: String): Long {

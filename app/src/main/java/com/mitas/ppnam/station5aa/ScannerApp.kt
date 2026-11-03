@@ -85,7 +85,9 @@ class ScannerApp : Application() {
         // logged in, bouncing LoginActivity (or Settings under it) to MainActivity would just
         // bounce straight back and loop.
         if (OperatorSessionHolder.session == null) return
-        if (!mqtt.isStationOnline && activity !is MainActivity) {
+        // Settings stays reachable: with the broker down (station status then reads offline) it is
+        // where the broker connection gets fixed.
+        if (!mqtt.isStationOnline && activity !is MainActivity && activity !is SettingsActivity) {
             val intent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
             }

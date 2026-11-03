@@ -15,9 +15,11 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  *   req/scram_start_requested   -> res/scram_challenge
  *   req/scram_proof_requested   -> res/scram_proof_result
- *   req/login_requested         -> res/operator_context
  *   req/reader_logout_requested -> res/operator_context (fire-and-forget here)
  *   req/operator_list_requested -> res/operator_list (login dropdown; not yet in MQTT_CONTRACT)
+ *
+ * [loginWithBadge] still sends `req/login_requested`, but that is not a contract route: it is not
+ * in MQTT_CONTRACT and the Station 5 desktop rejects it. Operators sign in with SCRAM.
  *
  * Every request carries the schema 4.1 envelope (Schema41). Responses are correlated on
  * inResponseToMessageId and branched on `accepted`/`errorCode` — free-text `reason` is shown
