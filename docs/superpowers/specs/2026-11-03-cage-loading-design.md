@@ -63,7 +63,7 @@ Idle state (no selected cage): the same layout with the banner replaced by a lar
 | RFID, user badge (`UserTagPolicy`, prefix `505055`) | any | ignored on this screen |
 | RFID, other | any (including the cage already shown) | `cage_select_requested { rfidTag }` → open/resume/switch and **arm one Pack** (`requiresCageScan:false`, `cageScanExpiresAtUtc`) |
 | QR | armed | `finished_good_allocate_requested { loadId, barcode }` — raw three-field QR, trimmed only; no `jobCard`, no `bagId` |
-| QR | not armed (no cage, arm used, or expired) | not sent; error beep + amber notice "Scan the cage tag before each Pack" |
+| QR | not armed (no cage, arm used, or expired) | not sent; full-screen refusal "Do NOT load this Pack yet" / "Scan the cage tag first, then scan this Pack again." with error beep (device simulation showed a notice alone could be missed) |
 
 After **every** allocation reply (accepted or refused) the arm is spent; the prompt returns to "Scan the cage tag". After an accepted Pack the app then refreshes the Pack list with one `cage_context_requested { loadId }` (allowed between cycles). A select reply with `requiresCageScan:true` (replayed/interrupted selection) shows the cage but does **not** arm. When the arm's countdown reaches zero the app disarms locally with notice "Cage tag expired — scan it again".
 
