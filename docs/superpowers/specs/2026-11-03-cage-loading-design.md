@@ -38,47 +38,53 @@ Rule for the future: if Android and desktop disagree, the contract is corrected 
 
 Login success requires `allowedTabs` to contain `cage_loading` (fail-closed, as `OperatorSession.canShow` already does). The dashboard's "no workflows" empty state is replaced by the Cage Loading screen. Settings, sign-out and the connection pill remain reachable from the top bar as today.
 
-On entry (and after any reconnect) the app sends `cage_context_requested` **without** `loadId`. Per the contract a fresh login has no active cage, so normally it shows the idle prompt; if the session does have an active load (`isActive:true`, `nextAction:"scan_pack"`) the app shows it. The app never selects a cage by itself.
+> **Revision 2026-11-03 (contract `aef7bf7`).** The Station 5 desktop changed the contract on 3 Nov 09:37: **one cage-tag scan arms exactly one Pack** (for two minutes, consumed by that Pack's allocation attempt whether accepted or refused); **any `cage_context_requested` cancels an unused arm**; rescanning a cage tag never previews or completes; completion uses an explicit **Complete cage** action (`cage_complete_requested` → preview → `cage_complete_confirmed`). The user approved reworking the app to this contract. §4.1–§4.4 below describe the reworked flow.
+
+On entry after login the app sends one `cage_context_requested` **without** `loadId` to show the session's selected cage (if any) — this never arms a Pack. The app never sends a context read while a Pack is armed, and never selects a cage by itself.
 
 ### 4.2 Loading screen — **"active cage only" (user chose option A)**
 
 - Large amber banner (`station_field` #A85F14): "LOADING CAGE", `cageId`, job / outer code of the Packs in it.
 - Two stat tiles: Pack count and total kg — **always the station's `load.packCount` / `load.totalKg`**, never counted locally.
 - "Last Pack" card: green ✓ Added, Bag ID, `actualKg`, disposition (Pass / Manager accepted).
-- Dashed prompt: "Scan next Pack QR · Rescan cage tag to complete".
-- Scrolling list of Packs in the load (from `packs`), newest first.
+- **Step prompt** that tells the operator the one next physical action:
+  - not armed: "Scan the cage tag" / "Scan the cage tag before each Pack";
+  - armed: "Scan ONE Pack QR now" with a countdown to the arm's expiry ("1:52").
+- **Complete cage** button (amber outline) when the shown load is open, has ≥1 Pack, and nothing is sending.
+- Scrolling list of Packs in the load, newest first. A cage-tag reply carries no `packs`; the list comes from the last context read for that load and from accepted allocations.
 - **No list of other open cages.** The physical cage is the memory; to return to a cage, scan its tag.
 
-Idle state (no active cage): the same layout with the banner replaced by a large "Scan a cage tag" prompt.
+Idle state (no selected cage): the same layout with the banner replaced by a large "Scan a cage tag" prompt.
 
-### 4.3 Scan routing
+### 4.3 Scan routing (the floor routine is **cage tag → Pack QR**, repeated for every Pack)
 
-| Scan | Active cage? | Request |
+| Scan | State | Request |
 |---|---|---|
 | RFID, user badge (`UserTagPolicy`, prefix `505055`) | any | ignored on this screen |
-| RFID, other | none or different cage | `cage_select_requested { rfidTag }` → switch/open/resume |
-| RFID | same as active cage | `cage_select_requested { rfidTag }` → station returns completion preview (§4.4) |
-| QR | active cage | `finished_good_allocate_requested { loadId, barcode }` — raw three-field QR, trimmed only; no `jobCard`, no `bagId` |
-| QR | none | not sent; brief "Scan a cage tag first" message |
+| RFID, other | any (including the cage already shown) | `cage_select_requested { rfidTag }` → open/resume/switch and **arm one Pack** (`requiresCageScan:false`, `cageScanExpiresAtUtc`) |
+| QR | armed | `finished_good_allocate_requested { loadId, barcode }` — raw three-field QR, trimmed only; no `jobCard`, no `bagId` |
+| QR | not armed (no cage, arm used, or expired) | not sent; error beep + amber notice "Scan the cage tag before each Pack" |
 
-Local pre-check of a QR before sending: exactly two commas, no empty field, ≤212 chars. A failure shows the refusal screen (§4.5) as "Label not recognised" without sending. All real validation is the station's.
+After **every** allocation reply (accepted or refused) the arm is spent; the prompt returns to "Scan the cage tag". After an accepted Pack the app then refreshes the Pack list with one `cage_context_requested { loadId }` (allowed between cycles). A select reply with `requiresCageScan:true` (replayed/interrupted selection) shows the cage but does **not** arm. When the arm's countdown reaches zero the app disarms locally with notice "Cage tag expired — scan it again".
+
+Countdowns (arm and completion preview) are measured from the moment the reply arrived, using the station's own clock: remaining = expiry − `serverSentAtUtc` (fallback `timestampUtc`), so handheld clock skew cannot shorten or lengthen them.
+
+Local pre-check of a QR before sending: exactly two commas, no empty field, ≤212 chars. A failure shows the refusal screen (§4.5) as "Label not recognised" without sending (and does not spend the station's arm, since nothing was sent). All real validation is the station's.
 
 The app never invents a `loadId`; it always uses the latest server-returned `load.loadId`.
 
 ### 4.4 Completing a cage
 
-Rescanning the active cage's tag returns `nextAction:"confirm_completion"` with `confirmationToken`, `confirmationExpiresAtUtc`, `load` and `packs`. The app shows a bottom sheet over a dimmed loading screen:
+The operator taps **Complete cage**. The app sends `cage_complete_requested { loadId }` (this discards any unused arm); the reply carries `nextAction:"confirm_completion"`, `confirmationToken`, `confirmationExpiresAtUtc`, `load` and `packs`. The app shows a bottom sheet over a dimmed loading screen:
 
 - "Complete CAGE-007?" · "14 Packs · 352.40 kg" · job / outer code · "Once completed, no more Packs can be added."
-- Buttons **Keep loading** (sends nothing; cage stays open) and **Complete cage** (amber).
-- Countdown to token expiry; when it expires the sheet closes with "Summary expired — rescan the cage tag".
+- Buttons **Keep loading** (sends nothing; cage stays open, not armed) and **Complete cage** (amber).
+- Countdown to token expiry; when it expires the sheet closes with "Summary expired — tap Complete cage again".
 - Never auto-confirmed. Scans are ignored while the sheet is open.
 
 **Complete cage** sends `cage_complete_confirmed { loadId, confirmationToken }` with a fresh message ID. On acceptance the screen shows a green "✓ CAGE-007 completed · 14 Packs · 352.40 kg · time" card, then **SAP receipt** and **Manifest print** status rows with friendly text for `grvState`/`printState` (Not queued, Pending, Processing, Succeeded, Failed, OutcomeUnknown, Reconcile, WaitingForGrv, NeedsReview), plus the line "Completed on the station. SAP and printing are handled by the desktop." It then prompts "Scan the next cage tag". It never says SAP posted unless `grvState` is Succeeded. A "Refresh" button re-reads that load with `cage_context_requested { loadId }`.
 
-`cage_contents_changed` (another handheld added a Pack after the preview) is only returned when **Complete cage** is tapped; the station does not push it. The app then closes the sheet, re-reads the load with `cage_context_requested { loadId }` to show the updated count, and asks the operator to rescan the tag for a fresh summary.
-
-The separate `cage_complete_requested` request is not used; rescanning is the contract's preferred path.
+`cage_contents_changed` (another handheld added a Pack after the preview) is only returned when **Complete cage** is tapped in the sheet; the station does not push it. The app then closes the sheet, re-reads the load with `cage_context_requested { loadId }` to show the updated count, and asks the operator to tap Complete cage again for a fresh summary. Preview rejections (`cage_not_active`, `completion_blocked`, `empty_cage`, `cage_locked`) use the refusal screen; `cage_not_active`/`cage_locked` return to idle.
 
 ### 4.5 Refused Pack / rejection — **full-screen stop (user chose option A)**
 
@@ -96,6 +102,7 @@ Operator text by `errorCode` (headline / detail; *builder may polish wording*):
 | `mixed_outer_code` | "This Pack's outer code doesn't match the cage. Use a matching cage." |
 | `cage_locked` | "This cage is already completed." → idle |
 | `cage_not_active`, `cage_context_changed` | "This cage is no longer active on this handheld. Rescan the cage tag." → idle |
+| `cage_scan_required` | headline "Scan the cage tag first", detail "Scan the cage tag again, then scan this Pack within two minutes." → stay (not armed) |
 
 Cage-selection rejections (`unknown_cage`: "This cage tag isn't registered — ask a Manager", `completion_blocked`, `empty_cage`: "Add Packs before completing") use the same full-screen pattern. Session errors (`login_required`) clear the workflow and return to Login with a reason, using the existing `PendingSignedOutReason` mechanism. Unknown codes show the station's `reason` text with the code underneath.
 
@@ -110,6 +117,7 @@ Cage-selection rejections (`unknown_cage`: "This cage tag isn't registered — a
 - A pending **completion** of uncertain outcome after restart: do not resend a new confirmation; send `cage_context_requested { loadId }` and show the result (completed → completed card; open → idle with "Rescan the cage tag to review").
 - **Pending request when the session ends** *(builder's call, from review)*. The pending entry records the `operatorSessionId` it was built with. Identical-byte retries happen only while that same session is alive. The desktop revokes a device's earlier sessions on every login and on logout (`SqlPackRepository.cs` ~288, `LogoutAsync`), and an unprocessed retry under a dead session would only return `login_required`/`request_expired`. So on sign-out (manual or idle), app restart, or any new login, a pending entry from an old session is **not replayed**. After the next login, before the scan screen accepts input, the app reconciles it:
   - pending **allocation**: send `cage_context_requested { loadId }` (the saved load). If `packs` contains the Bag ID → nothing to do, just show "{bagId} was recorded in {cageId}". Otherwise show an amber full-screen notice: "Last Pack {bagId} was not confirmed. Rescan cage {cageId}, then rescan that Pack." (A rescan is safe: an already-allocated Bag ID in the same open load is an idempotent read and never counts twice.)
+  - pending **completion preview** (`cage_complete_requested`): drop silently; nothing was changed.
   - pending **completion**: as above, read the load by `loadId` and show completed or still-open.
   - pending **cage selection**: drop it silently; the fresh session has no active cage, and the idle screen already says "Scan a cage tag".
   Then clear the entry. A manual sign-out while a request is pending first asks "A scan is still being sent. Sign out anyway?"; idle sign-out is not delayed.
