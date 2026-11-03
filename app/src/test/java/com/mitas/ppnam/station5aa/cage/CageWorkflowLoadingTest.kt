@@ -11,52 +11,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.math.BigDecimal
-import java.time.Instant
 
-class CageWorkflowLoadingTest {
-    private val t = Instant.parse("2026-11-03T10:00:00Z")
-    private var idSeq = 0
-    private val requests = CageRequests("scanner_ab12", { t }, { "m-${++idSeq}" })
-    private val outbox = MemoryOutboxStore()
-    private val wf = CageWorkflow(requests, outbox, { t.toEpochMilli() })
+class CageWorkflowLoadingTest : CageWorkflowFixture() {
+    private val scanTagFirst = Notice("Scan the cage tag before each Pack", Notice.Tone.WARNING)
 
-    private val validQr = "510019399,O,B9"
-
-    private fun accepted(json: String): JSONObject = JSONObject(json).apply {
-        put("inResponseToMessageId", outbox.load()!!.messageId)
-        if (!has("accepted")) put("accepted", true)
-    }
-
-    private fun rejected(code: String, reason: String = "x"): JSONObject =
-        accepted("""{"accepted":false,"errorCode":"$code","reason":"$reason"}""")
-
-    private fun loadJson(cageId: String, packCount: Int = 0, totalKg: String = "0", loadId: String = "L-$cageId") = """
-        {"loadId":"$loadId","cageId":"$cageId","status":"Open","packCount":$packCount,"totalKg":$totalKg,
-         "completedAtUtc":null,"grvState":"Not queued","grvReference":null,"printState":"WaitingForGrv","error":null}
-    """.trimIndent()
-
-    private fun packJson(bagId: String, kg: String = "25.0") = """
-        {"bagId":"$bagId","outerCode":"O","itemCode":"FG1","itemName":"Item","jobCard":"510019399","weightKg":$kg,"disposition":"Pass"}
-    """.trimIndent()
-
-    private fun publishes(effects: List<Effect>) = effects.filterIsInstance<Effect.Publish>()
-
-    @Before fun setUp() {
-        wf.start("s-1")
-        wf.onResponse(accepted("""{"accepted":true,"load":null,"isActive":false}"""))
-        wf.onStationOnline(true)
-    }
-
-    /** Selects CAGE-007 and loads two packs into the screen. */
-    private fun toLoading(cageId: String = "CAGE-007", packs: List<String> = listOf("B1", "B2")) {
-        wf.onRfid("TAG-$cageId")
-        wf.onResponse(accepted("""{"accepted":true,"nextAction":"scan_pack","load":${loadJson(cageId, packs.size, "50.4")}}"""))
-        val arr = JSONArray(packs.map { JSONObject(packJson(it)) })
-        wf.onResponse(accepted("""{"accepted":true,"isActive":true,"nextAction":"scan_pack","load":${loadJson(cageId, packs.size, "50.4")}}""")
-            .put("packs", arr))
-    }
+    @Before fun setUp() = signIn()
 
     private val loading get() = wf.state.screen as CageScreen.Loading
+
+    private fun allocatedAnswer(bagId: String = "B9", packCount: Int = 3, totalKg: String = "75.5", kg: String = "25.1") =
+        accepted("""{"accepted":true,"requiresCageScan":true,"nextAction":"select_cage",
+            "load":${loadJson("CAGE-007", packCount, totalKg)},"pack":${allocatedPackJson(bagId, kg)}}""")
 
     @Test fun startSendsReadActive() {
         val wf2Outbox = MemoryOutboxStore()
@@ -96,8 +61,9 @@ class CageWorkflowLoadingTest {
     @Test fun qrWithoutCageShowsNotice() {
         val effects = wf.onQr(validQr)
         assertTrue(publishes(effects).isEmpty())
+        assertTrue(effects.contains(Effect.ErrorFeedback))
         assertNull(outbox.load())
-        assertEquals("Scan a cage tag first", wf.state.notice?.text)
+        assertEquals(scanTagFirst, wf.state.notice)
     }
 
     @Test fun acceptedScanClearsNotice() {
@@ -109,68 +75,192 @@ class CageWorkflowLoadingTest {
         assertNull(wf.state.notice)
     }
 
-    @Test fun acceptedSelectFetchesPacks() {
-        wf.onRfid("E200ABC")
-        val effects = wf.onResponse(accepted("""{"accepted":true,"nextAction":"scan_pack","load":${loadJson("CAGE-007", 2, "50.4")}}"""))
+    // ---- one cage tag arms one Pack (contract aef7bf7) ----------------------------------------
+
+    @Test fun tagArmsOnePack() {
+        wf.onRfid("TAG-CAGE-007")
+        wf.onResponse(selectArmed("CAGE-007", 2, "50.4"))
         assertEquals("CAGE-007", loading.load.cageId)
-        assertTrue(loading.packs.isEmpty())
-        assertNull(loading.lastPack)
-        val p = publishes(effects).single().request
-        assertEquals(RequestIntent.READ_ACTIVE, p.intent)
-        assertEquals(p, outbox.load())
-        assertTrue(wf.state.sending)
-
-        val arr = JSONArray(listOf(JSONObject(packJson("B1")), JSONObject(packJson("B2"))))
-        wf.onResponse(accepted("""{"accepted":true,"isActive":true,"nextAction":"scan_pack","load":${loadJson("CAGE-007", 2, "50.4")}}""")
-            .put("packs", arr))
-        assertEquals("CAGE-007", loading.load.cageId)
-        assertEquals(2, loading.packs.size)
-        assertFalse(wf.state.sending)
-        assertNull(outbox.load())
-    }
-
-    @Test fun readActiveWithActiveLoadShowsLoadingOnStart() {
-        val ob = MemoryOutboxStore()
-        val w = CageWorkflow(requests, ob, { 0L })
-        w.start("s-1")
-        val r = JSONObject("""{"accepted":true,"isActive":true,"load":${loadJson("CAGE-009", 1, "25")}}""")
-            .put("packs", JSONArray(listOf(JSONObject(packJson("B5")))))
-            .put("inResponseToMessageId", ob.load()!!.messageId)
-        w.onResponse(r)
-        val s = w.state.screen as CageScreen.Loading
-        assertEquals("CAGE-009", s.load.cageId)
-        assertEquals(1, s.packs.size)
-        assertNull(s.lastPack)
-    }
-
-    @Test fun allocateAccepted() {
-        toLoading()
-        val effects = wf.onQr(validQr)
-        val p = publishes(effects).single().request
+        assertEquals(clockMs + 120_000, loading.armExpiresAtMs)
+        val p = publishes(wf.onQr(validQr)).single().request
         assertEquals(RequestIntent.ALLOCATE, p.intent)
-        assertEquals("L-CAGE-007", p.loadId)
         assertEquals("L-CAGE-007", JSONObject(p.body).getString("loadId"))
         assertEquals(validQr, JSONObject(p.body).getString("barcode"))
+    }
+
+    @Test fun secondQrAfterOneTagNotSent() {
+        toLoading()
+        wf.onQr(validQr)
+        wf.onResponse(allocatedAnswer())
+        wf.onResponse(accepted("""{"accepted":true,"isActive":true,"load":${loadJson("CAGE-007", 3, "75.5")}}""")
+            .put("packs", packsArray(listOf("B9", "B1", "B2"))))
+        assertNull(outbox.load())
+
+        val effects = wf.onQr("510019399,O,B10")
+        assertTrue(publishes(effects).isEmpty())
+        assertTrue(effects.contains(Effect.ErrorFeedback))
+        assertNull(outbox.load())
+        assertEquals(scanTagFirst, wf.state.notice)
+        assertNull(wf.state.refusal)
+        assertNull(loading.armExpiresAtMs)
+    }
+
+    @Test fun noReadWhileArmed() {
+        wf.onRfid("TAG-CAGE-007")
+        val effects = wf.onResponse(selectArmed("CAGE-007", 2, "50.4"))
+        assertTrue(publishes(effects).isEmpty())
+        assertNull(outbox.load())
+        assertFalse(wf.state.sending)
+        assertNotNull(loading.armExpiresAtMs)
+    }
+
+    @Test fun requiresCageScanTrueDoesNotArm() {
+        wf.onRfid("TAG-CAGE-007")
+        val effects = wf.onResponse(accepted("""{"accepted":true,"requiresCageScan":true,"nextAction":"select_cage",
+            "load":${loadJson("CAGE-007", 2, "50.4")}}"""))
+        assertTrue(publishes(effects).isEmpty())
+        assertEquals("CAGE-007", loading.load.cageId)
+        assertNull(loading.armExpiresAtMs)
+        val qr = wf.onQr(validQr)
+        assertTrue(publishes(qr).isEmpty())
+        assertEquals(scanTagFirst, wf.state.notice)
+    }
+
+    @Test fun sameCageRescanReArms() {
+        toLoading()
+        wf.onQr(validQr)
+        wf.onResponse(allocatedAnswer())
+        wf.onResponse(accepted("""{"accepted":true,"isActive":true,"load":${loadJson("CAGE-007", 3, "75.5")}}""")
+            .put("packs", packsArray(listOf("B9", "B1", "B2"))))
+
+        clockMs += 30_000
+        val p = publishes(wf.onRfid("TAG-CAGE-007")).single().request
+        assertEquals(RequestIntent.SELECT, p.intent)
+        val effects = wf.onResponse(selectArmed("CAGE-007", 3, "75.5",
+            serverSentAtUtc = "2026-11-03T10:00:30.000000Z", expiresAtUtc = "2026-11-03T10:02:30.000000Z"))
+        assertTrue(publishes(effects).isEmpty())
+        val s = wf.state.screen
+        assertTrue(s is CageScreen.Loading)
+        s as CageScreen.Loading
+        assertEquals(clockMs + 120_000, s.armExpiresAtMs)
+        assertEquals(listOf("B9", "B1", "B2"), s.packs.map { it.bagId }) // same load: list kept
+        assertEquals("B9", s.lastPack?.bagId)
+        assertEquals(RequestIntent.ALLOCATE, publishes(wf.onQr("510019399,O,B10")).single().request.intent)
+    }
+
+    @Test fun allocationAcceptedDisarmsAndRefreshes() {
+        toLoading()
+        val p = publishes(wf.onQr(validQr)).single().request
+        assertEquals(RequestIntent.ALLOCATE, p.intent)
         assertTrue(wf.state.sending)
 
-        val answer = wf.onResponse(accepted("""{"accepted":true,"load":${loadJson("CAGE-007", 3, "75.5")},
-            "pack":{"bagId":"B9","outerCode":"O","itemCode":"FG1","itemName":"Item","productionOrderNumber":"510019399","actualKg":25.1,"disposition":"Pass"}}"""))
+        val effects = wf.onResponse(allocatedAnswer())
+        assertEquals(Effect.SuccessFeedback, effects.first())
+        val read = publishes(effects).single().request
+        assertEquals(RequestIntent.READ_LOAD, read.intent)
+        assertEquals("cage_context_requested", read.requestType)
+        assertEquals("L-CAGE-007", JSONObject(read.body).getString("loadId"))
+        assertEquals(read, outbox.load())
+        assertNull(loading.armExpiresAtMs)
         assertEquals(3, loading.load.packCount)
         assertEquals(BigDecimal("75.5"), loading.load.totalKg)
         assertEquals("B9", loading.lastPack?.bagId)
         assertEquals(BigDecimal("25.1"), loading.lastPack?.weightKg)
-        assertEquals("B9", loading.packs.first().bagId)
-        assertEquals(3, loading.packs.size)
-        assertTrue(answer.contains(Effect.SuccessFeedback))
+        assertEquals(listOf("B9", "B1", "B2"), loading.packs.map { it.bagId })
+
+        wf.onResponse(accepted("""{"accepted":true,"isActive":true,"requiresCageScan":true,"load":${loadJson("CAGE-007", 4, "100.5")}}""")
+            .put("packs", packsArray(listOf("B10", "B9", "B1", "B2"))))
+        assertEquals(4, loading.load.packCount)
+        assertEquals(listOf("B10", "B9", "B1", "B2"), loading.packs.map { it.bagId })
+        assertEquals("B9", loading.lastPack?.bagId) // kept: same load
+        assertNull(loading.armExpiresAtMs)
         assertNull(outbox.load())
         assertFalse(wf.state.sending)
     }
 
+    @Test fun refreshReadRejectedStaysOnLoading() {
+        toLoading()
+        wf.onQr(validQr)
+        wf.onResponse(allocatedAnswer())
+        assertEquals(RequestIntent.READ_LOAD, outbox.load()?.intent)
+        assertTrue(wf.onResponse(rejected("something_odd")).isEmpty())
+        assertNull(wf.state.refusal)
+        assertEquals("CAGE-007", loading.load.cageId)
+        assertEquals("B9", loading.lastPack?.bagId)
+        assertEquals(3, loading.packs.size)
+        assertNull(outbox.load())
+    }
+
+    @Test fun allocationRefusedDisarmsNoRead() {
+        toLoading()
+        wf.onQr(validQr)
+        val effects = wf.onResponse(accepted("""{"accepted":false,"errorCode":"pack_allocated","reason":"x",
+            "requiresCageScan":true,"nextAction":"select_cage"}"""))
+        assertTrue(publishes(effects).isEmpty())
+        assertTrue(effects.contains(Effect.ErrorFeedback))
+        assertNull(outbox.load())
+        assertEquals("pack_allocated", wf.state.refusal?.code)
+        assertNull(loading.armExpiresAtMs)
+        wf.onDismissRefusal()
+        assertTrue(publishes(wf.onQr("510019399,O,B10")).isEmpty())
+        assertEquals(scanTagFirst, wf.state.notice)
+    }
+
+    @Test fun armExpiryDisarms() {
+        toLoading()
+        clockMs += 120_000
+        val effects = wf.onArmExpired()
+        assertTrue(effects.isEmpty())
+        assertNull(outbox.load())
+        assertNull(loading.armExpiresAtMs)
+        assertEquals(Notice("Cage tag expired — scan it again", Notice.Tone.WARNING), wf.state.notice)
+        assertEquals(listOf("B1", "B2"), loading.packs.map { it.bagId })
+    }
+
+    @Test fun armExpiryWhenNotArmedDoesNothing() {
+        toLoadingUnarmed()
+        val before = wf.state
+        assertTrue(wf.onArmExpired().isEmpty())
+        assertEquals(before, wf.state)
+    }
+
+    @Test fun qrAfterArmDeadlinePassedIsNotSent() {
+        toLoading()
+        clockMs += 120_001 // the host's tick has not fired yet
+        val effects = wf.onQr(validQr)
+        assertTrue(publishes(effects).isEmpty())
+        assertTrue(effects.contains(Effect.ErrorFeedback))
+        assertEquals(scanTagFirst, wf.state.notice)
+        assertNull(loading.armExpiresAtMs)
+    }
+
+    @Test fun countdownUsesStationClock() {
+        clockMs = t0.toEpochMilli() + 180_000 // handheld clock three minutes fast
+        wf.onRfid("TAG-CAGE-007")
+        wf.onResponse(selectArmed("CAGE-007"))
+        assertEquals(clockMs + 120_000, loading.armExpiresAtMs)
+    }
+
+    @Test fun countdownFallsBackToTimestampUtc() {
+        wf.onRfid("TAG-CAGE-007")
+        wf.onResponse(accepted("""{"accepted":true,"requiresCageScan":false,"cageScanExpiresAtUtc":"2026-11-03T10:02:00Z",
+            "timestampUtc":"2026-11-03T10:01:00Z","load":${loadJson("CAGE-007")}}"""))
+        assertEquals(clockMs + 60_000, loading.armExpiresAtMs)
+    }
+
+    @Test fun unparseableExpiryArmsForTwoMinutes() {
+        wf.onRfid("TAG-CAGE-007")
+        wf.onResponse(accepted("""{"accepted":true,"requiresCageScan":false,"cageScanExpiresAtUtc":"soon",
+            "serverSentAtUtc":"2026-11-03T10:00:00Z","load":${loadJson("CAGE-007")}}"""))
+        assertEquals(clockMs + 120_000, loading.armExpiresAtMs)
+    }
+
+    // ---- allocation ---------------------------------------------------------------------------
+
     @Test fun allocateIdempotentRescanDoesNotDuplicate() {
         toLoading(packs = listOf("B1", "B9"))
         wf.onQr(validQr)
-        wf.onResponse(accepted("""{"accepted":true,"load":${loadJson("CAGE-007", 2, "50.4")},
-            "pack":{"bagId":"B9","outerCode":"O","itemCode":"FG1","itemName":"Item","actualKg":25.0,"disposition":"Pass"}}"""))
+        wf.onResponse(allocatedAnswer(packCount = 2, totalKg = "50.4", kg = "25.0"))
         assertEquals(listOf("B9", "B1"), loading.packs.map { it.bagId })
     }
 
@@ -184,13 +274,17 @@ class CageWorkflowLoadingTest {
         assertSame(first, outbox.load())
     }
 
-    @Test fun invalidQrRefusedLocally() {
+    @Test fun invalidQrRefusedLocallyKeepsArm() {
         toLoading()
+        val armedUntil = loading.armExpiresAtMs
         val effects = wf.onQr("OUTER,BAG")
         assertTrue(publishes(effects).isEmpty())
         assertNull(outbox.load())
         assertEquals("local_invalid_qr", wf.state.refusal?.code)
         assertTrue(effects.contains(Effect.ErrorFeedback))
+        wf.onDismissRefusal()
+        assertEquals(armedUntil, loading.armExpiresAtMs) // nothing was sent, the station's arm is unspent
+        assertEquals(RequestIntent.ALLOCATE, publishes(wf.onQr(validQr)).single().request.intent)
     }
 
     @Test fun allocationRefusalBlocksScans() {
@@ -211,7 +305,19 @@ class CageWorkflowLoadingTest {
         wf.onDismissRefusal()
         assertNull(wf.state.refusal)
         assertEquals("CAGE-007", loading.load.cageId) // STAY
+        wf.onRfid("TAG-CAGE-007")
+        wf.onResponse(selectArmed("CAGE-007", 2, "50.4"))
         assertEquals(RequestIntent.ALLOCATE, publishes(wf.onQr("510019399,O,B10")).single().request.intent)
+    }
+
+    @Test fun cageScanRequiredStaysNotArmed() {
+        toLoading()
+        wf.onQr(validQr)
+        wf.onResponse(rejected("cage_scan_required"))
+        assertEquals("Scan the cage tag first", wf.state.refusal?.headline)
+        wf.onDismissRefusal()
+        assertEquals("CAGE-007", loading.load.cageId)
+        assertNull(loading.armExpiresAtMs)
     }
 
     @Test fun cageLockedGoesIdleAfterDismiss() {
@@ -230,6 +336,28 @@ class CageWorkflowLoadingTest {
         assertEquals("Cage not recognised", wf.state.refusal?.headline)
         assertTrue(effects.contains(Effect.ErrorFeedback))
         assertNull(outbox.load())
+    }
+
+    @Test fun selectionRefusalDisarms() {
+        toLoading()
+        wf.onRfid("TAG-OTHER")
+        wf.onResponse(rejected("unknown_cage"))
+        assertNull(loading.armExpiresAtMs) // the station discards an unused arm before selecting
+    }
+
+    @Test fun readActiveWithActiveLoadShowsLoadingNotArmed() {
+        val ob = MemoryOutboxStore()
+        val w = CageWorkflow(requests, ob, { 0L })
+        w.start("s-1")
+        val r = JSONObject("""{"accepted":true,"isActive":true,"load":${loadJson("CAGE-009", 1, "25")}}""")
+            .put("packs", JSONArray(listOf(JSONObject(packJson("B5")))))
+            .put("inResponseToMessageId", ob.load()!!.messageId)
+        w.onResponse(r)
+        val s = w.state.screen as CageScreen.Loading
+        assertEquals("CAGE-009", s.load.cageId)
+        assertEquals(1, s.packs.size)
+        assertNull(s.lastPack)
+        assertNull(s.armExpiresAtMs)
     }
 
     @Test fun readActiveRejectionGoesIdleWithoutRefusal() {
@@ -266,9 +394,11 @@ class CageWorkflowLoadingTest {
         toLoading()
         val p = publishes(wf.onRfid("TAG-003")).single().request
         assertEquals(RequestIntent.SELECT, p.intent)
-        wf.onResponse(accepted("""{"accepted":true,"nextAction":"scan_pack","load":${loadJson("CAGE-003", 0, "0")}}"""))
+        wf.onResponse(selectArmed("CAGE-003"))
         assertEquals("CAGE-003", loading.load.cageId)
         assertTrue(loading.packs.isEmpty())
+        assertNull(loading.lastPack)
+        assertNotNull(loading.armExpiresAtMs)
     }
 
     @Test fun offlineBlocksScans() {

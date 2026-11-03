@@ -32,8 +32,6 @@ import com.mitas.ppnam.station5aa.databinding.ActivityMainBinding
 import com.mitas.ppnam.station5aa.databinding.ItemCagePackBinding
 import com.mitas.ppnam.station5aa.databinding.SheetCageCompleteBinding
 import java.math.BigDecimal
-import java.time.Instant
-import java.time.format.DateTimeParseException
 import java.util.Locale
 
 /**
@@ -58,7 +56,7 @@ class MainActivity : SessionActivity() {
     private val countdown = object : Runnable {
         override fun run() {
             val preview = CageController.state.screen as? CageScreen.Preview ?: return
-            val left = remainingMs(preview.expiresAtUtc) ?: return // unparseable: the station still enforces it
+            val left = preview.expiresAtMs - System.currentTimeMillis() // anchored at receipt, measured on the station clock
             if (left <= 0) {
                 // Ignored by the workflow while the confirmation is in flight; keep checking until it settles.
                 CageController.previewExpired() // re-renders synchronously, which re-posts this
@@ -332,7 +330,7 @@ class MainActivity : SessionActivity() {
         val jobPack = preview.packs.firstOrNull()
         b.tvSheetJob.isVisible = jobPack != null
         if (jobPack != null) b.tvSheetJob.text = jobLine(jobPack)
-        b.tvSheetCountdown.isVisible = remainingMs(preview.expiresAtUtc) != null
+        b.tvSheetCountdown.isVisible = true
         b.rowSheetSending.isVisible = sending
         b.btnKeepLoading.isEnabled = !sending
         b.btnCompleteCage.isEnabled = !sending
@@ -343,13 +341,6 @@ class MainActivity : SessionActivity() {
         previewSheet = null
         previewSheetBinding = null
         previewSheetToken = null
-    }
-
-    /** Milliseconds until [expiresAtUtc] by the device clock, or null when it cannot be parsed. */
-    private fun remainingMs(expiresAtUtc: String): Long? = try {
-        Instant.parse(expiresAtUtc).toEpochMilli() - System.currentTimeMillis()
-    } catch (e: DateTimeParseException) {
-        null
     }
 
     private fun jobLine(pack: LoadedPack): String =

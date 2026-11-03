@@ -70,6 +70,19 @@ class CageRequestsTest {
         assertEquals("L1", b.getString("loadId"))
     }
 
+    @Test fun previewCarriesLoadIdOnly() {
+        val p = r.preview("s-1", "L1")
+        assertEquals("PPNAM/station_5/scanner_ab12/req/cage_complete_requested", p.topic)
+        assertEquals("cage_complete_requested", p.requestType)
+        assertEquals("cage_completion_result", p.responseType)
+        assertEquals(RequestIntent.PREVIEW, p.intent)
+        assertEquals("L1", p.loadId)
+        val b = JSONObject(p.body)
+        assertEquals("L1", b.getString("loadId"))
+        assertFalse(b.has("confirmationToken"))
+        assertEquals("s-1", b.getString("operatorSessionId"))
+    }
+
     @Test fun bodyIsUnder16k() {
         val qr = PackQr.parse("1," + "A".repeat(208) + ",B")!!
         assertEquals(212, qr.raw.length)

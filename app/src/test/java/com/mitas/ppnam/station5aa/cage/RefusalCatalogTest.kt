@@ -43,6 +43,26 @@ class RefusalCatalogTest {
         }
     }
 
+    @Test fun productionOrderRequiredAndInvalidMapped() {
+        for (c in listOf("production_order_required", "production_order_invalid")) {
+            check(RefusalCatalog.forAllocation(c, "x", null), noLoad,
+                "Job card on this label doesn't match. Put it aside for checking.", c, AfterRefusal.STAY)
+        }
+    }
+
+    @Test fun cageScanRequired() = check(
+        RefusalCatalog.forAllocation("cage_scan_required", "x", "B1"), "Scan the cage tag first",
+        "Scan the cage tag again, then scan this Pack within two minutes.", "cage_scan_required", AfterRefusal.STAY)
+
+    @Test fun completionFallsBackToAllocationTable() {
+        check(RefusalCatalog.forCompletion("cage_not_active", "x"), "Cage not available",
+            "This cage is no longer active on this handheld. Rescan the cage tag.", "cage_not_active", AfterRefusal.TO_IDLE)
+        check(RefusalCatalog.forCompletion("cage_locked", "x"), "Cage not available",
+            "This cage is already completed.", "cage_locked", AfterRefusal.TO_IDLE)
+        check(RefusalCatalog.forCompletion("completion_blocked", "Station text"), "Cage not completed",
+            "Station text", "completion_blocked", AfterRefusal.STAY)
+    }
+
     @Test fun mixedOuter() = assertEquals("This Pack's outer code doesn't match the cage. Use a matching cage.",
         RefusalCatalog.forAllocation("mixed_outer_code", "x", null).detail)
 
@@ -72,11 +92,11 @@ class RefusalCatalogTest {
 
     @Test fun confirmationExpired() = check(
         RefusalCatalog.forCompletion("confirmation_expired", "x"), "Cage not completed",
-        "The summary expired. Rescan the cage tag to complete.", "confirmation_expired", AfterRefusal.REFRESH_LOAD)
+        "The summary expired. Tap Complete cage again.", "confirmation_expired", AfterRefusal.REFRESH_LOAD)
 
     @Test fun contentsChanged() = check(
         RefusalCatalog.forCompletion("cage_contents_changed", "x"), "Cage not completed",
-        "Another Pack was added to this cage. Check the new count and rescan the cage tag to complete.",
+        "Another Pack was added to this cage. Check the new count and tap Complete cage again.",
         "cage_contents_changed", AfterRefusal.REFRESH_LOAD)
 
     @Test fun unknownCode() {

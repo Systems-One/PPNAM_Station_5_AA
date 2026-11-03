@@ -16,20 +16,97 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
     private val loading get() = wf.state.screen as CageScreen.Loading
     private val completed get() = wf.state.screen as CageScreen.Completed
 
-    @Test fun rescanActiveCageShowsPreview() {
+    private fun previewAnswer(load: String) = accepted("""{"accepted":true,"nextAction":"confirm_completion","confirmationToken":"tok-1",
+        "confirmationExpiresAtUtc":"2026-11-03T10:02:00.000000Z","serverSentAtUtc":"2026-11-03T10:00:00.000000Z",
+        "load":$load}""")
+
+    @Test fun completeCageSendsPreview() {
         toLoading()
-        val p = publishes(wf.onRfid("TAG-CAGE-007")).single().request
-        assertEquals(RequestIntent.SELECT, p.intent)
-        val effects = wf.onResponse(accepted("""{"accepted":true,"nextAction":"confirm_completion","confirmationToken":"tok-1",
-            "confirmationExpiresAtUtc":"2026-11-03T10:02:00.000000Z","load":${loadJson("CAGE-007", 2, "50.4")}}""")
+        val p = publishes(wf.onCompleteCage()).single().request
+        assertEquals(RequestIntent.PREVIEW, p.intent)
+        assertEquals("cage_complete_requested", p.requestType)
+        assertEquals("cage_completion_result", p.responseType)
+        assertEquals("L-CAGE-007", p.loadId)
+        val body = JSONObject(p.body)
+        assertEquals("L-CAGE-007", body.getString("loadId"))
+        assertFalse(body.has("confirmationToken"))
+        assertEquals(p, outbox.load())
+        assertTrue(wf.state.sending)
+        assertNull(loading.armExpiresAtMs) // the station discards an unused arm on a preview request
+    }
+
+    @Test fun completeCageDoesNotNeedArm() {
+        toLoadingUnarmed()
+        assertEquals(RequestIntent.PREVIEW, publishes(wf.onCompleteCage()).single().request.intent)
+    }
+
+    @Test fun completeCageNeedsPacks() {
+        wf.onRfid("TAG-CAGE-007")
+        wf.onResponse(selectArmed("CAGE-007", 0, "0"))
+        assertTrue(wf.onCompleteCage().isEmpty())
+        assertNull(outbox.load())
+    }
+
+    @Test fun completeCageOnlyFromLoadingAndNotWhileBusy() {
+        assertTrue(wf.onCompleteCage().isEmpty()) // Idle
+        toLoading()
+        wf.onQr(validQr) // sending
+        assertTrue(wf.onCompleteCage().isEmpty())
+        wf.onResponse(rejected("pack_allocated")) // refusal shown
+        assertTrue(wf.onCompleteCage().isEmpty())
+        assertNull(outbox.load())
+    }
+
+    @Test fun previewAcceptedShowsSheet() {
+        toLoading()
+        wf.onCompleteCage()
+        val effects = wf.onResponse(previewAnswer(loadJson("CAGE-007", 2, "50.4"))
             .put("packs", packsArray(listOf("B1", "B2"))))
         assertTrue(publishes(effects).isEmpty())
         assertEquals("CAGE-007", preview.load.cageId)
         assertEquals(listOf("B1", "B2"), preview.packs.map { it.bagId })
         assertEquals("tok-1", preview.token)
-        assertEquals("2026-11-03T10:02:00.000000Z", preview.expiresAtUtc)
+        assertEquals(clockMs + 120_000, preview.expiresAtMs)
         assertNull(outbox.load())
         assertFalse(wf.state.sending)
+    }
+
+    @Test fun previewCountdownUsesStationClock() {
+        clockMs += 180_000 // handheld clock three minutes fast
+        toLoading()
+        wf.onCompleteCage()
+        wf.onResponse(previewAnswer(loadJson("CAGE-007", 2, "50.4")))
+        assertEquals(clockMs + 120_000, preview.expiresAtMs)
+    }
+
+    @Test fun previewRefusedUsesCompletionCatalog() {
+        toLoading()
+        wf.onCompleteCage()
+        val effects = wf.onResponse(rejected("cage_not_active"))
+        assertTrue(effects.contains(Effect.ErrorFeedback))
+        assertEquals("cage_not_active", wf.state.refusal?.code)
+        assertEquals(AfterRefusal.TO_IDLE, wf.state.refusal?.after)
+        assertNull(outbox.load())
+        wf.onDismissRefusal()
+        assertEquals(CageScreen.Idle, wf.state.screen)
+    }
+
+    @Test fun previewRefusedUnknownStaysOnLoading() {
+        toLoading()
+        wf.onCompleteCage()
+        wf.onResponse(rejected("completion_blocked", "Select an open cage containing at least one Pack."))
+        assertEquals("Select an open cage containing at least one Pack.", wf.state.refusal?.detail)
+        wf.onDismissRefusal()
+        assertEquals("CAGE-007", loading.load.cageId)
+        assertNull(loading.armExpiresAtMs)
+    }
+
+    @Test fun rescanActiveCageNeverPreviews() {
+        toLoading()
+        wf.onRfid("TAG-CAGE-007")
+        // Even a stray completion-shaped answer to a selection is not a preview.
+        wf.onResponse(selectArmed("CAGE-007", 2, "50.4").put("confirmationToken", "tok-x"))
+        assertTrue(wf.state.screen is CageScreen.Loading)
     }
 
     @Test fun keepLoadingSendsNothing() {
@@ -39,6 +116,8 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
         assertNull(outbox.load())
         assertEquals("CAGE-007", loading.load.cageId)
         assertEquals(listOf("B1", "B2"), loading.packs.map { it.bagId })
+        assertNull(loading.armExpiresAtMs)
+        assertTrue(publishes(wf.onQr(validQr)).isEmpty()) // a fresh cage tag is needed before the next Pack
     }
 
     @Test fun confirmCompletes() {
@@ -98,7 +177,9 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
         assertEquals(15, loading.load.packCount)
         assertEquals(15, loading.packs.size)
         assertNull(loading.lastPack)
+        assertNull(loading.armExpiresAtMs)
         assertNull(outbox.load())
+        assertEquals(Notice("Tap Complete cage again to see the new count.", Notice.Tone.INFO), wf.state.notice)
     }
 
     @Test fun readLoadOfCompletedLoadShowsCompleted() {
@@ -119,6 +200,7 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
         assertNull(wf.state.refusal)
         assertEquals(CageScreen.Idle, wf.state.screen)
         assertNull(outbox.load())
+        assertNull(wf.state.notice)
     }
 
     @Test fun unknownCompletionRefusalStaysOnPreview() {
@@ -137,7 +219,8 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
         assertTrue(effects.isEmpty())
         assertEquals("CAGE-007", loading.load.cageId)
         assertEquals(2, loading.packs.size)
-        assertEquals(Notice("Summary expired — rescan the cage tag", Notice.Tone.WARNING), wf.state.notice)
+        assertNull(loading.armExpiresAtMs)
+        assertEquals(Notice("Summary expired — tap Complete cage again", Notice.Tone.WARNING), wf.state.notice)
     }
 
     @Test fun previewExpiryIgnoredWhileConfirmIsPending() {
@@ -165,8 +248,8 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
 
     @Test fun completedQrShowsScanCageNotice() {
         toCompleted()
-        assertTrue(wf.onQr(validQr).isEmpty())
-        assertEquals("Scan a cage tag first", wf.state.notice?.text)
+        assertTrue(publishes(wf.onQr(validQr)).isEmpty())
+        assertEquals("Scan the cage tag before each Pack", wf.state.notice?.text)
         assertNull(outbox.load())
     }
 
@@ -232,7 +315,7 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
         // Idle: a QR shows a notice; blank scans leave it alone
         wf.onQr(validQr)
         val notice = wf.state.notice
-        assertEquals("Scan a cage tag first", notice?.text)
+        assertEquals("Scan the cage tag before each Pack", notice?.text)
         wf.onQr("  ")
         wf.onRfid(" ")
         assertEquals(notice, wf.state.notice)

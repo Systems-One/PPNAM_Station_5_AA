@@ -5,7 +5,7 @@ import com.mitas.ppnam.station5aa.Schema41
 import org.json.JSONObject
 import java.time.Instant
 
-enum class RequestIntent { SELECT, READ_ACTIVE, READ_LOAD, RECOVER_ALLOCATION, RECOVER_COMPLETION, ALLOCATE, CONFIRM }
+enum class RequestIntent { SELECT, READ_ACTIVE, READ_LOAD, RECOVER_ALLOCATION, RECOVER_COMPLETION, ALLOCATE, PREVIEW, CONFIRM }
 
 data class PendingRequest(
     val requestType: String,
@@ -43,6 +43,13 @@ class CageRequests(
             RequestIntent.ALLOCATE, loadId, qr.bagId) {
             put("loadId", loadId)
             put("barcode", qr.raw)
+        }
+
+    /** cage_complete_requested: asks the station for a completion summary and confirmation token. */
+    fun preview(sessionId: String, loadId: String): PendingRequest =
+        build(sessionId, "cage_complete_requested", "cage_completion_result",
+            RequestIntent.PREVIEW, loadId, null) {
+            put("loadId", loadId)
         }
 
     fun confirm(sessionId: String, loadId: String, token: String): PendingRequest =

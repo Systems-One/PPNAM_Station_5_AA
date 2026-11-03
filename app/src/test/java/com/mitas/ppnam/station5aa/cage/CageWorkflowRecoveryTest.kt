@@ -224,6 +224,39 @@ class CageWorkflowRecoveryTest : CageWorkflowFixture() {
         assertNull(wf.state.refusal)
     }
 
+    @Test fun oldPreviewDroppedOnStart() {
+        outbox.save(requests.preview("s-old", "L1"))
+        val p = publishes(wf.start("s-new")).single().request
+        assertEquals(RequestIntent.READ_ACTIVE, p.intent)
+        assertEquals("s-new", p.operatorSessionId)
+        assertFalse(JSONObject(p.body).has("loadId"))
+        assertNull(wf.state.notice)
+        assertNull(wf.state.refusal)
+    }
+
+    @Test fun samePreviewSessionIsRepublished() {
+        val seeded = requests.preview("s-1", "L1").also { outbox.save(it) }
+        assertSame(seeded, publishes(wf.start("s-1")).single().request)
+    }
+
+    @Test fun conflictShowsRef() {
+        signIn()
+        toLoading()
+        val p = publishes(wf.onQr(validQr)).single().request
+        wf.onResponse(rejected("message_id_conflict"))
+        val detail = wf.state.refusal!!.detail
+        assertTrue(detail.contains("contact support", ignoreCase = true))
+        assertTrue(detail.endsWith(" Ref: ${p.messageId}"))
+    }
+
+    @Test fun previewConflictShowsRef() {
+        signIn()
+        toLoading()
+        val p = publishes(wf.onCompleteCage()).single().request
+        wf.onResponse(rejected("message_id_conflict"))
+        assertTrue(wf.state.refusal!!.detail.endsWith(" Ref: ${p.messageId}"))
+    }
+
     @Test fun oldReadLoadIsDroppedSilently() {
         outbox.save(requests.readLoad("s-old", "L1", RequestIntent.READ_LOAD))
         assertEquals(RequestIntent.READ_ACTIVE, publishes(wf.start("s-new")).single().request.intent)
