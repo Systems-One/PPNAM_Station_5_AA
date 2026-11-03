@@ -50,20 +50,20 @@ class CageWorkflow(
         val pending = outbox.load()
         when {
             pending == null -> send(requests.readActive(sessionId))
-            // TODO(Task 6): post-sign-in recovery of a pending request replaces this branch.
             pending.operatorSessionId == sessionId -> listOf(Effect.Publish(pending))
             else -> {
+                // Never replay a request built under an ended session: reconcile it instead.
                 outbox.clear()
-                send(requests.readActive(sessionId))
+                reconcile(pending, sessionId)
             }
         }
     }
 
-    /** Session ended: forget the session and the screen; the outbox is left for recovery. */
+    /** Session ended: forget the session and the screen (station status is kept); the outbox is left for recovery. */
     fun stop() {
         step {
             sessionId = null
-            state = CageUiState()
+            state = CageUiState(stationOnline = state.stationOnline)
             emptyList()
         }
     }
@@ -75,14 +75,14 @@ class CageWorkflow(
 
     fun onRfid(tag: String): List<Effect> = step {
         val session = sessionId
-        if (session == null || !acceptsScans() || UserTagPolicy.isUserTag(tag)) return@step emptyList()
+        if (tag.isBlank() || session == null || !acceptsScans() || UserTagPolicy.isUserTag(tag)) return@step emptyList()
         state = state.copy(notice = null)
         send(requests.select(session, tag.trim()))
     }
 
     fun onQr(scanned: String): List<Effect> = step {
         val session = sessionId
-        if (session == null || !acceptsScans()) return@step emptyList()
+        if (scanned.isBlank() || session == null || !acceptsScans()) return@step emptyList()
         val screen = state.screen
         if (screen !is CageScreen.Loading) {
             state = state.copy(notice = Notice(SCAN_CAGE_FIRST, Notice.Tone.INFO))
@@ -94,6 +94,8 @@ class CageWorkflow(
     }
 
     fun onResponse(json: JSONObject): List<Effect> = step {
+        // Without a session the answer is ignored and the outbox kept for start() to reconcile.
+        if (sessionId == null) return@step emptyList()
         val pending = outbox.load() ?: return@step emptyList()
         if (json.optString("inResponseToMessageId") != pending.messageId) return@step emptyList()
 
@@ -104,36 +106,73 @@ class CageWorkflow(
             RequestIntent.SELECT -> onSelectAccepted(json)
             RequestIntent.READ_ACTIVE -> onReadActiveAccepted(json)
             RequestIntent.ALLOCATE -> onAllocateAccepted(json)
-            RequestIntent.READ_LOAD,
-            RequestIntent.RECOVER_ALLOCATION,
-            RequestIntent.RECOVER_COMPLETION,
-            RequestIntent.CONFIRM -> onTask6Accepted(pending, json)
+            RequestIntent.READ_LOAD -> onReadLoadAccepted(json)
+            RequestIntent.RECOVER_ALLOCATION -> onRecoverAllocationAccepted(pending, json)
+            RequestIntent.RECOVER_COMPLETION -> onRecoverCompletionAccepted(json)
+            RequestIntent.CONFIRM -> onConfirmAccepted(json)
         }
     }
 
     fun onDismissRefusal(): List<Effect> = step {
         val refusal = state.refusal ?: return@step emptyList()
-        state = when (refusal.after) {
-            AfterRefusal.TO_IDLE -> state.copy(refusal = null, screen = CageScreen.Idle)
-            AfterRefusal.STAY -> state.copy(refusal = null)
-            // TODO(Task 6): re-read the load with cage_context_requested { loadId }.
-            AfterRefusal.REFRESH_LOAD -> state.copy(refusal = null)
+        when (refusal.after) {
+            AfterRefusal.TO_IDLE -> {
+                state = state.copy(refusal = null, screen = CageScreen.Idle)
+                emptyList()
+            }
+            AfterRefusal.STAY -> {
+                state = state.copy(refusal = null)
+                emptyList()
+            }
+            AfterRefusal.REFRESH_LOAD -> refreshShownLoad()
+        }
+    }
+
+    /** "Keep loading" on the completion summary: back to Loading, nothing is sent. */
+    fun onKeepLoading(): List<Effect> = step {
+        val preview = state.screen as? CageScreen.Preview
+        if (preview != null && !state.sending) {
+            state = state.copy(screen = CageScreen.Loading(preview.load, preview.packs, lastPack = null))
         }
         emptyList()
     }
 
-    // TODO(Task 6): completion preview handling.
-    fun onKeepLoading(): List<Effect> = step { emptyList() }
+    /** "Complete cage" on the completion summary: sends cage_complete_confirmed with the summary's token. */
+    fun onConfirmComplete(): List<Effect> = step {
+        val preview = state.screen as? CageScreen.Preview
+        val session = sessionId
+        if (preview == null || session == null || state.sending || state.refusal != null) return@step emptyList()
+        send(requests.confirm(session, preview.load.loadId, preview.token))
+    }
 
-    // TODO(Task 6): send cage_complete_confirmed.
-    fun onConfirmComplete(): List<Effect> = step { emptyList() }
+    /** The summary's token ran out. Ignored while a confirmation is in flight (its answer decides). */
+    fun onPreviewExpired(): List<Effect> = step {
+        val preview = state.screen as? CageScreen.Preview
+        if (preview != null && !state.sending) {
+            state = state.copy(
+                screen = CageScreen.Loading(preview.load, preview.packs, lastPack = null),
+                notice = Notice(SUMMARY_EXPIRED, Notice.Tone.WARNING),
+            )
+        }
+        emptyList()
+    }
 
-    // TODO(Task 6): close the preview with "Summary expired".
-    fun onPreviewExpired(): List<Effect> = step { emptyList() }
+    /** "Refresh" on the Completed card: re-reads that load with cage_context_requested { loadId }. */
+    fun onRefreshCompleted(): List<Effect> = step {
+        val completed = state.screen as? CageScreen.Completed
+        val session = sessionId
+        if (completed == null || session == null || state.sending) return@step emptyList()
+        send(requests.readLoad(session, completed.load.loadId, RequestIntent.READ_LOAD))
+    }
 
-    // TODO(Task 6): identical-byte retries of the pending request.
-    @Suppress("UNUSED_PARAMETER")
-    fun onRetryTick(sessionId: String?): List<Effect> = step { emptyList() }
+    /** Re-publishes the pending request unchanged, only while the session that built it is the live one. */
+    fun onRetryTick(sessionId: String?): List<Effect> = step {
+        val pending = outbox.load()
+        if (sessionId == null || this.sessionId != sessionId || pending == null || pending.operatorSessionId != sessionId) {
+            return@step emptyList()
+        }
+        listOf(Effect.Publish(pending))
+    }
 
     fun pending(): PendingRequest? = outbox.load()
 
@@ -142,24 +181,39 @@ class CageWorkflow(
     private fun onRejected(pending: PendingRequest, json: JSONObject): List<Effect> {
         val code = json.optString("errorCode")
         val reason = json.optString("reason")
-        if (code in RefusalCatalog.TRANSIENT) return emptyList() // keep the outbox; Task 6 retries
+        if (code in RefusalCatalog.TRANSIENT) return emptyList() // keep the outbox; onRetryTick resends
         outbox.clear()
         if (code == LOGIN_REQUIRED) {
             sessionId = null
             state = CageUiState(stationOnline = state.stationOnline)
             return listOf(Effect.SignOut(SESSION_ENDED))
         }
+        if (code == REQUEST_EXPIRED) return onRequestExpired(pending)
         return when (pending.intent) {
             RequestIntent.SELECT -> refuse(RefusalCatalog.forSelection(code, reason))
             RequestIntent.ALLOCATE -> refuse(RefusalCatalog.forAllocation(code, reason, pending.bagId))
+            RequestIntent.CONFIRM -> refuse(RefusalCatalog.forCompletion(code, reason))
             RequestIntent.READ_ACTIVE, RequestIntent.READ_LOAD -> {
+                if (code == MESSAGE_ID_CONFLICT) return refuse(RefusalCatalog.forSelection(code, reason))
                 state = state.copy(screen = CageScreen.Idle)
                 emptyList()
             }
-            RequestIntent.RECOVER_ALLOCATION,
-            RequestIntent.RECOVER_COMPLETION,
-            RequestIntent.CONFIRM -> onTask6Rejected(pending, code, reason)
+            RequestIntent.RECOVER_ALLOCATION, RequestIntent.RECOVER_COMPLETION -> {
+                if (code == MESSAGE_ID_CONFLICT) return refuse(RefusalCatalog.forSelection(code, reason))
+                state = state.copy(screen = CageScreen.Idle, notice = Notice(RECOVERY_FAILED, Notice.Tone.WARNING))
+                emptyList()
+            }
         }
+    }
+
+    /**
+     * Ruling R3: a request first sent within the last five minutes means the handheld's clock is
+     * wrong; an older one has an unknown outcome and is reconciled as after sign-in.
+     */
+    private fun onRequestExpired(pending: PendingRequest): List<Effect> {
+        if (nowMs() - pending.firstSentAtMs <= CLOCK_WINDOW_MS) return refuse(CLOCK_REFUSAL)
+        val session = sessionId ?: return emptyList()
+        return reconcile(pending, session)
     }
 
     private fun onSelectAccepted(json: JSONObject): List<Effect> {
@@ -172,6 +226,25 @@ class CageWorkflow(
         state = state.copy(screen = CageScreen.Loading(load, emptyList(), lastPack = null))
         val session = sessionId ?: return emptyList()
         return send(requests.readActive(session)) // the select answer carries no packs
+    }
+
+    /** Rescan of the active cage: the station answers with a completion summary and token. */
+    private fun onSelectionPreview(json: JSONObject): List<Effect> {
+        val load = CageJson.load(json.optJSONObject("load"))
+        if (load == null) {
+            state = state.copy(screen = CageScreen.Idle)
+            return emptyList()
+        }
+        val packs = CageJson.packs(json.optJSONArray("packs"))
+        val token = json.optString("confirmationToken")
+        state = state.copy(
+            screen = if (token.isBlank()) {
+                CageScreen.Loading(load, packs, lastPack = null) // no token: nothing to confirm with
+            } else {
+                CageScreen.Preview(load, packs, token, json.optString("confirmationExpiresAtUtc"))
+            },
+        )
+        return emptyList()
     }
 
     private fun onReadActiveAccepted(json: JSONObject): List<Effect> {
@@ -197,19 +270,92 @@ class CageWorkflow(
         return listOf(Effect.SuccessFeedback)
     }
 
-    // ---- Task 6 hooks ---------------------------------------------------------------------
+    /** cage_context_requested { loadId }: an open load → Loading, otherwise the Completed card. */
+    private fun onReadLoadAccepted(json: JSONObject): List<Effect> {
+        val load = CageJson.load(json.optJSONObject("load"))
+        state = state.copy(
+            screen = when {
+                load == null -> CageScreen.Idle
+                load.isOpen -> CageScreen.Loading(load, CageJson.packs(json.optJSONArray("packs")), lastPack = null)
+                else -> CageScreen.Completed(load)
+            },
+        )
+        return emptyList()
+    }
 
-    /** TODO(Task 6): SELECT answered with `nextAction:"confirm_completion"` → Preview. */
-    @Suppress("UNUSED_PARAMETER")
-    private fun onSelectionPreview(json: JSONObject): List<Effect> = emptyList()
+    private fun onRecoverAllocationAccepted(pending: PendingRequest, json: JSONObject): List<Effect> {
+        val load = CageJson.load(json.optJSONObject("load"))
+        val bagId = pending.bagId
+        val notice = when {
+            load == null || bagId == null -> Notice(RECOVERY_FAILED, Notice.Tone.WARNING)
+            CageJson.packs(json.optJSONArray("packs")).any { it.bagId == bagId } ->
+                Notice("$bagId was recorded in ${load.cageId}", Notice.Tone.SUCCESS)
+            else -> Notice(
+                "Last Pack $bagId was not confirmed. Rescan cage ${load.cageId}, then rescan that Pack.",
+                Notice.Tone.WARNING,
+            )
+        }
+        state = state.copy(screen = CageScreen.Idle, notice = notice)
+        return emptyList()
+    }
 
-    /** TODO(Task 6): accepted READ_LOAD / RECOVER_* / CONFIRM answers. */
-    @Suppress("UNUSED_PARAMETER")
-    private fun onTask6Accepted(pending: PendingRequest, json: JSONObject): List<Effect> = emptyList()
+    private fun onRecoverCompletionAccepted(json: JSONObject): List<Effect> {
+        val load = CageJson.load(json.optJSONObject("load"))
+        state = when {
+            load == null -> state.copy(screen = CageScreen.Idle, notice = Notice(RECOVERY_FAILED, Notice.Tone.WARNING))
+            load.isOpen -> state.copy(
+                screen = CageScreen.Idle,
+                notice = Notice("Cage ${load.cageId} is still open. Rescan the cage tag to review.", Notice.Tone.WARNING),
+            )
+            else -> state.copy(screen = CageScreen.Completed(load))
+        }
+        return emptyList()
+    }
 
-    /** TODO(Task 6): rejected RECOVER_* / CONFIRM answers (CONFIRM → RefusalCatalog.forCompletion). */
-    @Suppress("UNUSED_PARAMETER")
-    private fun onTask6Rejected(pending: PendingRequest, code: String, reason: String): List<Effect> = emptyList()
+    /** CONFIRM accepted, including `alreadyCompleted:true`. */
+    private fun onConfirmAccepted(json: JSONObject): List<Effect> {
+        val load = CageJson.load(json.optJSONObject("load")) ?: (state.screen as? CageScreen.Preview)?.load
+        state = state.copy(screen = if (load == null) CageScreen.Idle else CageScreen.Completed(load))
+        return listOf(Effect.SuccessFeedback)
+    }
+
+    // ---- recovery -------------------------------------------------------------------------
+
+    /**
+     * Replaces a request of uncertain outcome (built under an ended session, or expired long ago)
+     * with a read under [session]. The caller has already cleared the outbox.
+     */
+    private fun reconcile(pending: PendingRequest, session: String): List<Effect> {
+        val loadId = pending.loadId
+        return when (pending.intent) {
+            RequestIntent.ALLOCATE, RequestIntent.RECOVER_ALLOCATION ->
+                if (loadId == null) send(requests.readActive(session))
+                else send(requests.readLoad(session, loadId, RequestIntent.RECOVER_ALLOCATION, pending.bagId))
+            RequestIntent.CONFIRM, RequestIntent.RECOVER_COMPLETION ->
+                if (loadId == null) send(requests.readActive(session))
+                else send(requests.readLoad(session, loadId, RequestIntent.RECOVER_COMPLETION))
+            RequestIntent.SELECT, RequestIntent.READ_ACTIVE, RequestIntent.READ_LOAD ->
+                send(requests.readActive(session))
+        }
+    }
+
+    /** After a REFRESH_LOAD refusal: close any summary and re-read the load the screen was showing. */
+    private fun refreshShownLoad(): List<Effect> {
+        val screen = state.screen
+        val loadId = when (screen) {
+            is CageScreen.Loading -> screen.load.loadId
+            is CageScreen.Preview -> screen.load.loadId
+            is CageScreen.Completed -> screen.load.loadId
+            CageScreen.Idle -> null
+        }
+        state = state.copy(
+            refusal = null,
+            screen = if (screen is CageScreen.Preview) CageScreen.Loading(screen.load, screen.packs, lastPack = null) else screen,
+        )
+        val session = sessionId
+        if (loadId == null || session == null) return emptyList()
+        return send(requests.readLoad(session, loadId, RequestIntent.READ_LOAD))
+    }
 
     // ---- helpers --------------------------------------------------------------------------
 
@@ -240,6 +386,17 @@ class CageWorkflow(
         const val SCAN_CAGE_FIRST = "Scan a cage tag first"
         const val SESSION_ENDED = "Your session ended. Sign in and rescan the cage."
         const val LOGIN_REQUIRED = "login_required"
+        const val REQUEST_EXPIRED = "request_expired"
+        const val MESSAGE_ID_CONFLICT = "message_id_conflict"
         const val CONFIRM_COMPLETION = "confirm_completion"
+        const val SUMMARY_EXPIRED = "Summary expired — rescan the cage tag"
+        const val RECOVERY_FAILED = "Couldn't confirm the last scan. Rescan the cage tag."
+        const val CLOCK_WINDOW_MS = 300_000L
+        val CLOCK_REFUSAL = Refusal(
+            "Check the handheld's clock",
+            "The handheld's time is wrong. Ask a supervisor to correct it, then scan again.",
+            REQUEST_EXPIRED,
+            AfterRefusal.STAY,
+        )
     }
 }
