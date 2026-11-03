@@ -35,6 +35,18 @@ test('SCRAM round trip at the contract default of 100000 iterations, server sign
   assert.equal(r.expiresAtUtc, stamp(T0 + 16 * 3600_000));
 });
 
+test('PBKDF2 uses the plain UTF-8 password (no NFKC), like Rfc2898DeriveBytes.Pbkdf2(string)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const seed = JSON.parse(readFileSync(new URL('../seed.json', import.meta.url), 'utf8'));
+  const wide = 'ｓｉｍ１２３'; // full-width "sim123"
+  assert.equal(wide.normalize('NFKC'), 'sim123');
+  seed.users.push({ name: 'wide', password: wide, role: 'Operator' });
+  const h = harness({ seed });
+  assert.match(h.login('wide', wide), /^[0-9a-f-]{36}$/);
+  h.advance(3_000);
+  assert.throws(() => h.login('wide', wide.normalize('NFKC')), /proof refused login_failed/);
+});
+
 test('wrong password is login_failed; used challenge is challenge_expired', () => {
   const h = harness();
   const client = scramClient('sim', 'not-the-password');

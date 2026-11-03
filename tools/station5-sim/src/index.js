@@ -47,7 +47,10 @@ if (!(await broker.ownsLoopback())) {
 
 const control = await startControl(createControlHandler({
   station, store, config, recent: () => recentLog.slice(),
-  setStationOnline: async (online) => { await broker.publishStatus(online); logLine(`station status -> ${online ? 'online' : 'offline'} (retained)`); },
+  setStationOnline: async (online) => {
+    logLine(`station status -> ${online ? 'online' : 'offline'} (retained)${online ? '' : '; holding requests until online'}`);
+    return broker.setStationOnline(online);
+  },
 }), { host: controlHost, port: controlPort });
 logLine(`control API on http://${controlHost}:${controlPort} (GET /state, GET /log, POST /reset, /station/online, /station/offline, /drop-next-reply, /pause, /resume, /restart-memory, /allocate-from-other-device, /advance-receipt)`);
 logLine(`devices: ${config.deviceIds === '*' ? '* (any)' : config.deviceIds.join(', ')}; SCRAM iterations ${config.scramIterations}; AllowMixedOuterCodes ${config.allowMixedOuterCodes}; ready in ${Math.round(performance.now() - t0)} ms`);

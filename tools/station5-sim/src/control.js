@@ -4,12 +4,14 @@ import { WorkflowError, parseGuid } from './util.js';
 
 /**
  * @param {{station: object, store: object, config: object, recent: () => object[],
- *          setStationOnline: (online: boolean) => Promise<void>, now?: () => number}} deps
+ *          setStationOnline: (online: boolean) => Promise<number>, now?: () => number}} deps
+ *          setStationOnline flips the station flag, publishes retained status and, when going online,
+ *          processes held requests (returns how many were answered).
  */
 export function createControlHandler({ station, store, config, recent, setStationOnline, now = Date.now }) {
   const routes = {
     'GET /state': () => ({
-      station: station.flags(),
+      station: { ...station.flags(), heldRequests: station.queuedCount() },
       config: { deviceIds: config.deviceIds, allowMixedOuterCodes: config.allowMixedOuterCodes, scramIterations: config.scramIterations },
       devicesSeen: station.seenDevices(),
       armedScans: station.armedScans(),
@@ -17,8 +19,8 @@ export function createControlHandler({ station, store, config, recent, setStatio
     }),
     'GET /log': () => recent(),
     'POST /reset': () => { store.reset(now()); station.clearMemory(); return { ok: true }; },
-    'POST /station/online': async () => { station.setOnline(true); await setStationOnline(true); return { online: true }; },
-    'POST /station/offline': async () => { station.setOnline(false); await setStationOnline(false); return { online: false }; },
+    'POST /station/online': async () => ({ online: true, processedHeldRequests: await setStationOnline(true) }),
+    'POST /station/offline': async () => { await setStationOnline(false); return { online: false }; },
     'POST /drop-next-reply': () => { station.armDropNextReply(); return { dropNextReply: true }; },
     'POST /pause': () => { station.setPaused(true); return { paused: true }; },
     'POST /resume': () => { station.setPaused(false); return { paused: false }; },

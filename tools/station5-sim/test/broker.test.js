@@ -21,7 +21,7 @@ before(async () => {
   await broker.publishStatus(true);
   control = await startControl(createControlHandler({
     station, store, config, recent: () => logs.slice(),
-    setStationOnline: async (online) => { statusOnline.push(online); await broker.publishStatus(online); },
+    setStationOnline: async (online) => { statusOnline.push(online); return broker.setStationOnline(online); },
   }), { host: '127.0.0.1', port: 0 });
   controlUrl = `http://127.0.0.1:${control.address().port}`;
   client = await connect({ port, clientId: 'ScannerApp_test', username: 'ppnam', password: 'ppnam-sim' });
@@ -83,15 +83,21 @@ test('drop-next-reply drops one publish but stores the outcome; identical bytes 
   assert.equal(res.isDuplicate, true);
 });
 
-test('station offline publishes retained "offline" and stops answering until online', async () => {
+test('station offline publishes retained "offline", holds requests, and answers them in order once online', async () => {
   assert.deepEqual((await post('/station/offline')).json, { online: false });
   const off = await client.waitFor((m) => m.topic === 'PPNAM/station_5/status');
   assert.equal(off.payload, 'offline');
-  client.publish('PPNAM/station_5/scanner_test/req/cage_context_requested', contextRequest('b-off'));
+  client.publish('PPNAM/station_5/scanner_test/req/cage_context_requested', contextRequest('b-off-1'));
+  client.publish('PPNAM/station_5/scanner_test/req/cage_context_requested', contextRequest('b-off-2'));
   assert.equal(await client.waitFor((m) => m.topic.endsWith('/res/cage_context_result'), 500), null);
-  await post('/station/online');
+  const state = await (await fetch(`${controlUrl}/state`)).json();
+  assert.equal(state.station.heldRequests, 2);
+  assert.deepEqual((await post('/station/online')).json, { online: true, processedHeldRequests: 2 });
   const on = await client.waitFor((m) => m.topic === 'PPNAM/station_5/status');
   assert.equal(on.payload, 'online');
+  const first = await client.waitFor((m) => m.topic.endsWith('/res/cage_context_result'));
+  const second = await client.waitFor((m) => m.topic.endsWith('/res/cage_context_result'));
+  assert.deepEqual([JSON.parse(first.payload).inResponseToMessageId, JSON.parse(second.payload).inResponseToMessageId], ['b-off-1', 'b-off-2']);
   client.publish('PPNAM/station_5/scanner_test/req/cage_context_requested', contextRequest('b-on'));
   assert.ok(await client.waitFor((m) => m.topic.endsWith('/res/cage_context_result')));
 });

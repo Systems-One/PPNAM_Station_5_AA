@@ -8,7 +8,7 @@ const sha256 = (data) => crypto.createHash('sha256').update(data).digest();
 /** StationAuthentication.CreateVerifier: only salt, iterations, StoredKey and ServerKey are kept. */
 export function createVerifier(name, password, role, iterations, { active = true, userId = crypto.randomUUID() } = {}) {
   const salt = crypto.randomBytes(16);
-  const salted = crypto.pbkdf2Sync(Buffer.from(password.normalize('NFKC'), 'utf8'), salt, iterations, 32, 'sha256');
+  const salted = crypto.pbkdf2Sync(Buffer.from(password, 'utf8'), salt, iterations, 32, 'sha256');
   const verifier = {
     userId, name: name.trim(), role, active, salt: salt.toString('base64'), iterations,
     storedKey: sha256(hmac(salted, 'Client Key')).toString('base64'),
