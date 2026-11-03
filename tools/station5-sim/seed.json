@@ -1,0 +1,294 @@
+{
+  "_comment": "Station 5 simulator seed. Pack labels come from PPNAM-Station-5/DOCS/Station5_QR_Testing_20261102.md (sample S001-S006 and full-set F001-F015). Not seeded on purpose (unweighed Bag ID -> pack_not_found): 510023059,9030000158,S5QA-20261102-F016",
+  "users": [
+    {
+      "name": "sim",
+      "password": "sim123",
+      "role": "Operator"
+    },
+    {
+      "name": "manager",
+      "password": "manager123",
+      "role": "Manager"
+    }
+  ],
+  "cages": [
+    {
+      "cageId": "CAGE-001",
+      "rfid": "E2000017CAGE0001",
+      "active": true
+    },
+    {
+      "cageId": "CAGE-002",
+      "rfid": "E2000017CAGE0002",
+      "active": true
+    },
+    {
+      "cageId": "CAGE-003",
+      "rfid": "E2000017CAGE0003",
+      "active": true
+    },
+    {
+      "cageId": "CAGE-009",
+      "rfid": "E2000017CAGE0009",
+      "active": false
+    }
+  ],
+  "packs": [
+    {
+      "bagId": "S5QA-20261102-S001",
+      "outerCode": "9030000104",
+      "productionOrderNumber": "510023132",
+      "jobCard": "510023132",
+      "itemCode": "9030000104",
+      "itemName": "SHEETING BLACK C/F DIY PCW 2M X 5M X 150MIC",
+      "expectedKg": 1.41,
+      "actualKg": 1.422,
+      "disposition": "Pass",
+      "qr": "510023132,9030000104,S5QA-20261102-S001"
+    },
+    {
+      "bagId": "S5QA-20261102-S002",
+      "outerCode": "9030000140",
+      "productionOrderNumber": "510023102",
+      "jobCard": "510023102",
+      "itemCode": "9030000140",
+      "itemName": "BAG CARRIER MINI  WHT PCW [RSA] 200+130X460X25MIC LD/HD P01",
+      "expectedKg": 6.4,
+      "actualKg": 6.412,
+      "disposition": "Pass",
+      "qr": "510023102,9030000140,S5QA-20261102-S002"
+    },
+    {
+      "bagId": "S5QA-20261102-S003",
+      "outerCode": "9000002084",
+      "productionOrderNumber": "510023094",
+      "jobCard": "510023094",
+      "itemCode": "9000002084",
+      "itemName": "BAG ICE B/T S GENERIC [RSA] 210X550X70MIC LD P02",
+      "expectedKg": 7.58,
+      "actualKg": 7.592,
+      "disposition": "Pass",
+      "qr": "510023094,9000002084,S5QA-20261102-S003"
+    },
+    {
+      "bagId": "S5QA-20261102-S004",
+      "outerCode": "9020000461",
+      "productionOrderNumber": "510023096",
+      "jobCard": "510023096",
+      "itemCode": "9020000461",
+      "itemName": "BAG CLR [RSA]  L 600X900X80MIC LD P00",
+      "expectedKg": 8.11,
+      "actualKg": 8.122,
+      "disposition": "Pass",
+      "qr": "510023096,9020000461,S5QA-20261102-S004"
+    },
+    {
+      "bagId": "S5QA-20261102-S005",
+      "outerCode": "9030000176",
+      "productionOrderNumber": "510023106",
+      "jobCard": "510023106",
+      "itemCode": "9030000176",
+      "itemName": "BAG CARRIER MIDI WHT CHECKIN 270+150X520X25MIC [RSA]  LD/HD P03",
+      "expectedKg": 9.2,
+      "actualKg": 9.212,
+      "disposition": "Pass",
+      "qr": "510023106,9030000176,S5QA-20261102-S005"
+    },
+    {
+      "bagId": "S5QA-20261102-S006",
+      "outerCode": "9000002417",
+      "productionOrderNumber": "510023093",
+      "jobCard": "510023093",
+      "itemCode": "9000002417",
+      "itemName": "BAG ICE M CLR SHOPRITE 5KG 350X460X80MIC LD P03",
+      "expectedKg": 12.08,
+      "actualKg": 12.092,
+      "disposition": "Pass",
+      "qr": "510023093,9000002417,S5QA-20261102-S006"
+    },
+    {
+      "bagId": "S5QA-20261102-F001",
+      "outerCode": "9060000134",
+      "productionOrderNumber": "510023208",
+      "jobCard": "510023208",
+      "itemCode": "9060000134",
+      "itemName": "SHRINK CLR 440X70MIC LD P00",
+      "expectedKg": 1,
+      "actualKg": 1.012,
+      "disposition": "Pass",
+      "qr": "510023208,9060000134,S5QA-20261102-F001"
+    },
+    {
+      "bagId": "S5QA-20261102-F002",
+      "outerCode": "9030000104",
+      "productionOrderNumber": "510023132",
+      "jobCard": "510023132",
+      "itemCode": "9030000104",
+      "itemName": "SHEETING BLACK C/F DIY PCW 2M X 5M X 150MIC",
+      "expectedKg": 1.41,
+      "actualKg": 1.422,
+      "disposition": "Pass",
+      "qr": "510023132,9030000104,S5QA-20261102-F002"
+    },
+    {
+      "bagId": "S5QA-20261102-F003",
+      "outerCode": "9030000061",
+      "productionOrderNumber": "510023131",
+      "jobCard": "510023131",
+      "itemCode": "9030000061",
+      "itemName": "SHEETING BLACK C/F PCW 3M X 30M X 100MIC",
+      "expectedKg": 8.44,
+      "actualKg": 8.452,
+      "disposition": "Pass",
+      "qr": "510023131,9030000061,S5QA-20261102-F003"
+    },
+    {
+      "bagId": "S5QA-20261102-F004",
+      "outerCode": "9030000176",
+      "productionOrderNumber": "510023106",
+      "jobCard": "510023106",
+      "itemCode": "9030000176",
+      "itemName": "BAG CARRIER MIDI WHT CHECKIN 270+150X520X25MIC [RSA]  LD/HD P03",
+      "expectedKg": 9.2,
+      "actualKg": 9.212,
+      "disposition": "Pass",
+      "qr": "510023106,9030000176,S5QA-20261102-F004"
+    },
+    {
+      "bagId": "S5QA-20261102-F005",
+      "outerCode": "9030000140",
+      "productionOrderNumber": "510023102",
+      "jobCard": "510023102",
+      "itemCode": "9030000140",
+      "itemName": "BAG CARRIER MINI  WHT PCW [RSA] 200+130X460X25MIC LD/HD P01",
+      "expectedKg": 6.4,
+      "actualKg": 6.412,
+      "disposition": "Pass",
+      "qr": "510023102,9030000140,S5QA-20261102-F005"
+    },
+    {
+      "bagId": "S5QA-20261102-F006",
+      "outerCode": "9020000461",
+      "productionOrderNumber": "510023096",
+      "jobCard": "510023096",
+      "itemCode": "9020000461",
+      "itemName": "BAG CLR [RSA]  L 600X900X80MIC LD P00",
+      "expectedKg": 8.11,
+      "actualKg": 8.122,
+      "disposition": "Pass",
+      "qr": "510023096,9020000461,S5QA-20261102-F006"
+    },
+    {
+      "bagId": "S5QA-20261102-F007",
+      "outerCode": "9020000753",
+      "productionOrderNumber": "510023095",
+      "jobCard": "510023095",
+      "itemCode": "9020000753",
+      "itemName": "BAG CLEAR LD POO 600X900X150MIC",
+      "expectedKg": 7.6,
+      "actualKg": 7.612,
+      "disposition": "Pass",
+      "qr": "510023095,9020000753,S5QA-20261102-F007"
+    },
+    {
+      "bagId": "S5QA-20261102-F008",
+      "outerCode": "9000002084",
+      "productionOrderNumber": "510023094",
+      "jobCard": "510023094",
+      "itemCode": "9000002084",
+      "itemName": "BAG ICE B/T S GENERIC [RSA] 210X550X70MIC LD P02",
+      "expectedKg": 7.58,
+      "actualKg": 7.592,
+      "disposition": "Pass",
+      "qr": "510023094,9000002084,S5QA-20261102-F008"
+    },
+    {
+      "bagId": "S5QA-20261102-F009",
+      "outerCode": "9000002417",
+      "productionOrderNumber": "510023093",
+      "jobCard": "510023093",
+      "itemCode": "9000002417",
+      "itemName": "BAG ICE M CLR SHOPRITE 5KG 350X460X80MIC LD P03",
+      "expectedKg": 12.08,
+      "actualKg": 12.092,
+      "disposition": "Pass",
+      "qr": "510023093,9000002417,S5QA-20261102-F009"
+    },
+    {
+      "bagId": "S5QA-20261102-F010",
+      "outerCode": "9086000019",
+      "productionOrderNumber": "510023085",
+      "jobCard": "510023085",
+      "itemCode": "9086000019",
+      "itemName": "BUBBLEWRAP CLR [OWN] [RSA] 600X100MX30MIC LD/HD P00",
+      "expectedKg": 1.81,
+      "actualKg": 1.822,
+      "disposition": "Pass",
+      "qr": "510023085,9086000019,S5QA-20261102-F010"
+    },
+    {
+      "bagId": "S5QA-20261102-F011",
+      "outerCode": "9085000050",
+      "productionOrderNumber": "510023069",
+      "jobCard": "510023069",
+      "itemCode": "9085000050",
+      "itemName": "PALLETWRAP CLR [RSA] 400X400X17MIC ROLL [EXT CORE] LD P00",
+      "expectedKg": 2.55,
+      "actualKg": 2.562,
+      "disposition": "Pass",
+      "qr": "510023069,9085000050,S5QA-20261102-F011"
+    },
+    {
+      "bagId": "S5QA-20261102-F012",
+      "outerCode": "9085000048",
+      "productionOrderNumber": "510023067",
+      "jobCard": "510023067",
+      "itemCode": "9085000048",
+      "itemName": "PALLETWRAP CLR [RSA] 400X400X13MIC ROLL [EXT CORE] LD P00",
+      "expectedKg": 1.95,
+      "actualKg": 1.962,
+      "disposition": "Pass",
+      "qr": "510023067,9085000048,S5QA-20261102-F012"
+    },
+    {
+      "bagId": "S5QA-20261102-F013",
+      "outerCode": "9085000047",
+      "productionOrderNumber": "510023066",
+      "jobCard": "510023066",
+      "itemCode": "9085000047",
+      "itemName": "PALLETWRAP CLR [RSA] 400X400X11MIC ROLL [EXT CORE] LD P00",
+      "expectedKg": 1.65,
+      "actualKg": 1.32,
+      "disposition": "Underweight",
+      "qr": "510023066,9085000047,S5QA-20261102-F013",
+      "note": "QC pending: qc_required until a Manager accepts it on the desktop"
+    },
+    {
+      "bagId": "S5QA-20261102-F014",
+      "outerCode": "9086000015",
+      "productionOrderNumber": null,
+      "jobCard": null,
+      "itemCode": "9086000015",
+      "itemName": "BUBBLEWRAP CLR ROLL [RSA] 1.2MMX100MX30MIC LD P00",
+      "expectedKg": 4.02,
+      "actualKg": 4.032,
+      "disposition": "Pass",
+      "qr": "510023064,9086000015,S5QA-20261102-F014",
+      "note": "Legacy two-field record with no production order: production_order_required"
+    },
+    {
+      "bagId": "S5QA-20261102-F015",
+      "outerCode": "9086000002",
+      "productionOrderNumber": "510023063",
+      "jobCard": "510023063",
+      "itemCode": "9086000002",
+      "itemName": "BUBBLEWRAP CLR ROLL [OWN] 1.2MMX100MX40MIC LD/HD P00",
+      "expectedKg": 4.5,
+      "actualKg": 5.4,
+      "disposition": "ManagerAccepted",
+      "qr": "510023063,9086000002,S5QA-20261102-F015",
+      "note": "Overweight, released by a Manager"
+    }
+  ]
+}
