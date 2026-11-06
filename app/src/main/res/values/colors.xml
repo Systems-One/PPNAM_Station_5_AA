@@ -30,6 +30,10 @@
     <color name="success">#2BC36D</color>
     <color name="warning">#F0A13A</color>
     <color name="danger">#E25C5C</color>
+    <!-- Fill behind white button text: #E25C5C gives ~3.2:1, this gives ~5.1:1 (WCAG AA). -->
+    <color name="danger_strong">#B83A3A</color>
+    <!-- Red text on dark surfaces (dialog buttons): #E25C5C is ~4.3:1 on the dialog, this is ~5.3:1. -->
+    <color name="danger_text">#EF7B7B</color>
     <color name="info">#2E77F5</color>
 
     <!-- Tinted Background Colours -->

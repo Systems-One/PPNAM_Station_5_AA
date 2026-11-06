@@ -16,6 +16,13 @@ class LoginFailureTest {
         assertEquals(LoginFailureKind.WRONG_CREDENTIALS, LoginFailure.classify("x", "INVALID_CREDENTIALS"))
     }
 
+    /** MQTT_CONTRACT.md §7: the codes the station actually sends for a wrong username/password. */
+    @Test
+    fun `contract credential codes are wrong-credentials`() {
+        assertEquals(LoginFailureKind.WRONG_CREDENTIALS, LoginFailure.classify("x", "login_failed"))
+        assertEquals(LoginFailureKind.WRONG_CREDENTIALS, LoginFailure.classify("x", "invalid_proof"))
+    }
+
     @Test
     fun `other rejection codes are refused, not wrong-credentials`() {
         assertEquals(LoginFailureKind.REFUSED, LoginFailure.classify("Challenge expired", "scram_challenge_expired"))
