@@ -49,6 +49,7 @@ object CageController {
     fun install(app: Application) {
         if (workflow != null) return
         this.app = app
+        ScanFeedback.warmUp(app)
         mqtt = MqttManager.getInstance(app)
         val wf = CageWorkflow(
             CageRequests(DeviceIdentity.deviceId(app), Instant::now) { UUID.randomUUID().toString() },
@@ -133,7 +134,7 @@ object CageController {
             }
             is Effect.SignOut -> SessionGuard.signOut(effect.reason)
             Effect.SuccessFeedback -> ScanFeedback.success(app)
-            Effect.ErrorFeedback -> ScanFeedback.error(app)
+            Effect.ErrorFeedback -> ScanFeedback.fail(app)
         }
     }
 

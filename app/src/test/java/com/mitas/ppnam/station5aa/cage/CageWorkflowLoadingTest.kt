@@ -319,7 +319,7 @@ class CageWorkflowLoadingTest : CageWorkflowFixture() {
         afterFirstPack()
         wf.onQr("510019399,O,B1")
         val effects = wf.onResponse(allocatedAnswer(bagId = "B1", packCount = 3, totalKg = "75.5", kg = "25.0"))
-        assertFalse(effects.contains(Effect.SuccessFeedback))
+        assertEquals(Effect.SuccessFeedback, effects.first()) // still accepted: success (S1)
         assertEquals(Notice("B1 is already in this cage.", Notice.Tone.INFO), wf.state.notice)
         assertEquals("B9", loading.lastPack?.bagId) // unchanged
         assertEquals(RequestIntent.READ_LOAD, publishes(effects).single().request.intent) // still refreshes
@@ -338,7 +338,7 @@ class CageWorkflowLoadingTest : CageWorkflowFixture() {
         wf.onResponse(selectArmed("CAGE-007", 3, "75.5"))
         wf.onQr(validQr)
         val effects = wf.onResponse(allocatedAnswer(packCount = 3, totalKg = "75.5"))
-        assertFalse(effects.contains(Effect.SuccessFeedback))
+        assertEquals(Effect.SuccessFeedback, effects.first())
         assertEquals(alreadyInCage, wf.state.notice)
         assertNull(loading.lastPack)
         assertEquals(RequestIntent.READ_LOAD, publishes(effects).single().request.intent)
@@ -350,7 +350,7 @@ class CageWorkflowLoadingTest : CageWorkflowFixture() {
         wf.onResponse(selectArmed("CAGE-007", 3, "75.5"))
         wf.onQr(validQr)
         val effects = wf.onResponse(allocatedAnswer(packCount = 4, totalKg = "100.6").put("alreadyAllocated", true))
-        assertFalse(effects.contains(Effect.SuccessFeedback))
+        assertEquals(Effect.SuccessFeedback, effects.first())
         assertEquals(alreadyInCage, wf.state.notice)
         assertNull(loading.lastPack)
         assertEquals(4, loading.load.packCount) // the station's figures are still shown
@@ -506,8 +506,8 @@ class CageWorkflowLoadingTest : CageWorkflowFixture() {
     @Test fun offlineBlocksScans() {
         wf.onStationOnline(false)
         assertFalse(wf.state.stationOnline)
-        assertTrue(wf.onRfid("E200ABC").isEmpty())
-        assertTrue(wf.onQr(validQr).isEmpty())
+        assertEquals(listOf<Effect>(Effect.ErrorFeedback), wf.onRfid("E200ABC")) // refused locally (S1)
+        assertEquals(listOf<Effect>(Effect.ErrorFeedback), wf.onQr(validQr))
         assertNull(wf.state.notice)
         assertNull(outbox.load())
     }

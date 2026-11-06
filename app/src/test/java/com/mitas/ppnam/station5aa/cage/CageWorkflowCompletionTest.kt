@@ -83,7 +83,7 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
         toLoading()
         wf.onCompleteCage()
         val effects = wf.onResponse(rejected("cage_not_active"))
-        assertTrue(effects.contains(Effect.ErrorFeedback))
+        assertFalse(effects.contains(Effect.ErrorFeedback)) // a button tap: no sound (S1)
         assertEquals("cage_not_active", wf.state.refusal?.code)
         assertEquals(AfterRefusal.TO_IDLE, wf.state.refusal?.after)
         assertNull(outbox.load())
@@ -143,7 +143,7 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
 
         val effects = wf.onResponse(accepted("""{"accepted":true,"nextAction":"select_cage",
             "load":${loadJson("CAGE-007", 2, "50.4", status = "Completed", grvState = "Pending")}}"""))
-        assertTrue(effects.contains(Effect.SuccessFeedback))
+        assertFalse(effects.contains(Effect.SuccessFeedback)) // a button tap: no sound (S1)
         assertEquals("CAGE-007", completed.load.cageId)
         assertEquals("Pending", completed.load.grvState)
         assertNull(outbox.load())
@@ -155,7 +155,7 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
         wf.onConfirmComplete()
         val effects = wf.onResponse(accepted("""{"accepted":true,"alreadyCompleted":true,"nextAction":"select_cage",
             "load":${loadJson("CAGE-007", 2, "50.4", status = "Completed")}}"""))
-        assertTrue(effects.contains(Effect.SuccessFeedback))
+        assertFalse(effects.contains(Effect.SuccessFeedback))
         assertEquals("CAGE-007", completed.load.cageId)
     }
 
@@ -169,7 +169,7 @@ class CageWorkflowCompletionTest : CageWorkflowFixture() {
         toPreview()
         wf.onConfirmComplete()
         val effects = wf.onResponse(rejected("cage_contents_changed"))
-        assertTrue(effects.contains(Effect.ErrorFeedback))
+        assertFalse(effects.contains(Effect.ErrorFeedback))
         assertEquals("cage_contents_changed", wf.state.refusal?.code)
         assertEquals(AfterRefusal.REFRESH_LOAD, wf.state.refusal?.after)
         assertNull(outbox.load())
