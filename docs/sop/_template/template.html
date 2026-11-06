@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="{{description}}">
+<meta name="generator" content="PPNAM SOP template {{template_version}}">
+<title>{{doc_title}}</title>
+<style>
+{{fonts_css}}
+</style>
+<style>
+{{sop_css}}
+</style>
+<style>:root{--accent:{{accent}};--accent-tint:{{accent_tint}}}</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="cover" aria-label="Cover">
+  <p class="cover-mark" aria-hidden="true">{{mark}}</p>
+  <p class="cover-brand"><img src="{{ppnam_logo}}" alt="PPNAM"><span>Standard operating procedure</span></p>
+  <div class="cover-main">
+    <img class="cover-icon" src="{{icon}}" alt="{{app_name}} app icon">
+    <p class="cover-kicker">Handheld SOP</p>
+    <h1>{{app_name}}</h1>
+    <p class="cover-standfirst">{{standfirst}}</p>
+    <dl class="cover-facts">
+      <div><dt>Version</dt><dd>{{version}}</dd></div>
+      <div><dt>Date</dt><dd>{{date}}</dd></div>
+      <div><dt>Device</dt><dd>{{device}}</dd></div>
+      <div><dt>Station</dt><dd>{{station}}</dd></div>
+    </dl>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc-side" aria-label="Contents">
+    <p>Contents</p>
+    <ol>
+{{toc_side}}
+    </ol>
+  </nav>
+
+  <main>
+{{sections}}
+  </main>
+</div>
+
+<footer class="doc-foot">
+  <span>{{footer_left}}</span>
+  <span>Generated from docs/sop/content.md with the PPNAM SOP template {{template_version}}</span>
+</footer>
+
+</div>
+</body>
+</html>
