@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Outlined text-field stroke (suite consistency C1, after Station 1's text_field_stroke.xml).
+     boxStrokeColor used to be the single colour outline_dark: MDC then applies it to the FOCUSED
+     state only and falls back to its 42%-black default for every other state, so the outline
+     barely showed on the dark card. Resting = field_stroke, focused = the station's amber. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:color="@color/border_primary" android:state_enabled="false" />
+    <item android:color="@color/station_field" android:state_focused="true" />
+    <item android:color="@color/text_muted" android:state_hovered="true" />
+    <item android:color="@color/field_stroke" />
+</selector>
