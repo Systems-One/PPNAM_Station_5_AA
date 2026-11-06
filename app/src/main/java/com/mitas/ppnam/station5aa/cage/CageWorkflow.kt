@@ -55,8 +55,15 @@ class CageWorkflow(
     /** Operator session in use; null when signed out. All requests are built with it. */
     private var sessionId: String? = null
 
+    /** The last scan sent (trimmed): a repeat read of it while "Sending…" is the same scan (S3). */
+    private var lastScan: String? = null
+
+    /** The last value refused on the handheld and when (device clock), to quiet its repeat reads (S3). */
+    private var lastLocalRefusal: Pair<String, Long>? = null
+
     fun start(sessionId: String): List<Effect> = step {
         this.sessionId = sessionId
+        forgetScans()
         val pending = outbox.load()
         when {
             pending == null -> send(requests.readActive(sessionId))
@@ -73,6 +80,7 @@ class CageWorkflow(
     fun stop() {
         step {
             sessionId = null
+            forgetScans()
             state = CageUiState(stationOnline = state.stationOnline)
             emptyList()
         }
@@ -86,26 +94,30 @@ class CageWorkflow(
     fun onRfid(tag: String): List<Effect> = step {
         val session = sessionId
         if (tag.isBlank() || session == null || UserTagPolicy.isUserTag(tag)) return@step emptyList()
-        if (!acceptsScans()) return@step scanWhileSending()
+        val value = tag.trim()
+        if (!acceptsScans()) return@step scanNotTaken(value)
         state = state.copy(notice = null)
-        send(requests.select(session, tag.trim()))
+        lastScan = value
+        send(requests.select(session, value))
     }
 
     fun onQr(scanned: String): List<Effect> = step {
         val session = sessionId
         if (scanned.isBlank() || session == null) return@step emptyList()
-        if (!acceptsScans()) return@step scanWhileSending()
+        val value = scanned.trim()
+        if (!acceptsScans()) return@step scanNotTaken(value)
         val screen = state.screen
         if (screen !is CageScreen.Loading || !isArmed(screen)) {
             // One cage tag arms exactly one Pack: a QR without a live arm is never sent. It is a
             // full-screen stop (not a small notice) so the operator can't take it for an accepted Pack.
             if (screen is CageScreen.Loading) state = state.copy(screen = screen.copy(armExpiresAtMs = null))
             state = state.copy(notice = null)
-            return@step refuse(RefusalCatalog.scanCageTagFirst())
+            return@step refuseLocally(value, RefusalCatalog.scanCageTagFirst())
         }
         state = state.copy(notice = null)
         // A malformed label is refused locally; nothing is sent, so the station's arm is unspent.
-        val qr = PackQr.parse(scanned) ?: return@step refuse(RefusalCatalog.labelNotRecognised())
+        val qr = PackQr.parse(scanned) ?: return@step refuseLocally(value, RefusalCatalog.labelNotRecognised())
+        lastScan = value
         send(requests.allocate(session, screen.load.loadId, qr))
     }
 
@@ -237,21 +249,25 @@ class CageWorkflow(
             return emptyList()
         }
         outbox.clear()
+        // Suite rule S1: only a scan's own request sounds; Complete cage and the reads never do.
+        val scan = isScan(pending)
         if (code == LOGIN_REQUIRED) {
             sessionId = null
+            forgetScans()
             state = CageUiState(stationOnline = state.stationOnline)
-            return listOf(Effect.SignOut(SESSION_ENDED))
+            return failIf(scan) + Effect.SignOut(SESSION_ENDED)
         }
-        if (code == REQUEST_EXPIRED) return onRequestExpired(pending)
+        if (code == REQUEST_EXPIRED) return onRequestExpired(pending, scan)
         if (code == MESSAGE_ID_CONFLICT) {
             // Stop retrying and give support the message ID to trace.
             val r = RefusalCatalog.forSelection(code, reason)
-            return refuse(r.copy(detail = "${r.detail} Ref: ${pending.messageId}"))
+            return refuse(r.copy(detail = "${r.detail} Ref: ${pending.messageId}"), sound = scan)
         }
         return when (pending.intent) {
             RequestIntent.SELECT -> refuse(RefusalCatalog.forSelection(code, reason))
             RequestIntent.ALLOCATE -> refuse(RefusalCatalog.forAllocation(code, reason, pending.bagId))
-            RequestIntent.PREVIEW, RequestIntent.CONFIRM -> refuse(RefusalCatalog.forCompletion(code, reason))
+            RequestIntent.PREVIEW, RequestIntent.CONFIRM ->
+                refuse(RefusalCatalog.forCompletion(code, reason), sound = false)
             RequestIntent.READ_LOAD -> {
                 // The refresh after an accepted Pack: keep what is shown rather than dropping the cage.
                 val shown = state.screen as? CageScreen.Loading
@@ -275,10 +291,11 @@ class CageWorkflow(
      * Ruling R3: a request first sent within the last five minutes means the handheld's clock is
      * wrong; an older one has an unknown outcome and is reconciled as after sign-in.
      */
-    private fun onRequestExpired(pending: PendingRequest): List<Effect> {
-        if (nowMs() - pending.firstSentAtMs <= CLOCK_WINDOW_MS) return refuse(CLOCK_REFUSAL)
-        val session = sessionId ?: return emptyList()
-        return reconcile(pending, session)
+    private fun onRequestExpired(pending: PendingRequest, scan: Boolean): List<Effect> {
+        if (nowMs() - pending.firstSentAtMs <= CLOCK_WINDOW_MS) return refuse(CLOCK_REFUSAL, sound = scan)
+        // The scan's request timed out, so the scan fails; the reconciling read that follows is silent.
+        val session = sessionId ?: return failIf(scan)
+        return failIf(scan) + reconcile(pending, session)
     }
 
     /**
@@ -289,8 +306,9 @@ class CageWorkflow(
     private fun onSelectAccepted(json: JSONObject): List<Effect> {
         val load = CageJson.load(json.optJSONObject("load"))
         if (load == null || !load.isOpen) {
+            // Nothing to load into: the scan selected no cage.
             state = state.copy(screen = CageScreen.Idle)
-            return emptyList()
+            return listOf(Effect.ErrorFeedback)
         }
         // The select answer carries no packs: keep what is known for the same load.
         val same = (state.screen as? CageScreen.Loading)?.takeIf { it.load.loadId == load.loadId }
@@ -299,7 +317,7 @@ class CageWorkflow(
         state = state.copy(
             screen = CageScreen.Loading(load, same?.packs.orEmpty(), same?.lastPack, armExpiresAtMs),
         )
-        return emptyList()
+        return listOf(Effect.SuccessFeedback)
     }
 
     /** cage_complete_requested accepted: show the summary with a station-clock countdown. */
@@ -338,7 +356,8 @@ class CageWorkflow(
     /**
      * An accepted allocation. A Pack already in this load (idempotent rescan: its bagId is in the
      * shown list, the station's packCount did not rise, or `alreadyAllocated:true`) is not a new
-     * placement: no success feedback, an INFO notice, and the last-Pack card is left as it was.
+     * placement: an INFO notice, and the last-Pack card is left as it was. The station still
+     * accepted the scan, so it sounds success like a new Pack (suite rule S1).
      */
     private fun onAllocateAccepted(pending: PendingRequest, json: JSONObject): List<Effect> {
         val current = state.screen as? CageScreen.Loading
@@ -361,7 +380,7 @@ class CageWorkflow(
                 screen = CageScreen.Loading(load, packs, same?.lastPack),
                 notice = Notice("${bagId ?: "This Pack"} is already in this cage.", Notice.Tone.INFO),
             )
-            emptyList()
+            listOf(Effect.SuccessFeedback)
         } else {
             state = state.copy(screen = CageScreen.Loading(load, packs, pack))
             listOf(Effect.SuccessFeedback)
@@ -415,11 +434,11 @@ class CageWorkflow(
         return emptyList()
     }
 
-    /** CONFIRM accepted, including `alreadyCompleted:true`. */
+    /** CONFIRM accepted, including `alreadyCompleted:true`. A button tap, not a scan: no sound (S1). */
     private fun onConfirmAccepted(json: JSONObject): List<Effect> {
         val load = CageJson.load(json.optJSONObject("load")) ?: (state.screen as? CageScreen.Preview)?.load
         state = state.copy(screen = if (load == null) CageScreen.Idle else CageScreen.Completed(load))
-        return listOf(Effect.SuccessFeedback)
+        return emptyList()
     }
 
     // ---- recovery -------------------------------------------------------------------------
@@ -467,13 +486,44 @@ class CageWorkflow(
         return !s.sending && s.refusal == null && s.stationOnline && s.screen !is CageScreen.Preview
     }
 
-    /** A scan that can't be taken: beeps and warns only when it is "Sending…" alone that blocks it; otherwise silent. */
-    private fun scanWhileSending(): List<Effect> {
+    /**
+     * A scan that can't be taken (suite rules S1 and S3). Silent while a refusal or the completion
+     * summary is up (those screens take no scans), for a repeat read of the scan in flight, and for
+     * a repeat of a value refused here within [REPEAT_WINDOW_MS]. Otherwise it is refused locally:
+     * fail once, plus the "wait" notice when it is "Sending…" alone that blocks it.
+     */
+    private fun scanNotTaken(value: String): List<Effect> {
         val s = state
-        if (!s.sending || s.refusal != null || !s.stationOnline || s.screen is CageScreen.Preview) return emptyList()
-        state = s.copy(notice = Notice(WAIT_SENDING, Notice.Tone.WARNING))
+        if (s.refusal != null || s.screen is CageScreen.Preview) return emptyList()
+        if (s.sending && value == lastScan) return emptyList()
+        if (isRepeatOfLocalRefusal(value)) return emptyList()
+        lastLocalRefusal = value to nowMs()
+        if (s.sending && s.stationOnline) state = s.copy(notice = Notice(WAIT_SENDING, Notice.Tone.WARNING))
         return listOf(Effect.ErrorFeedback)
     }
+
+    /** A refusal decided on the handheld; a repeat read of the same value within the window is silent (S3). */
+    private fun refuseLocally(value: String, refusal: Refusal): List<Effect> {
+        val repeat = isRepeatOfLocalRefusal(value)
+        lastLocalRefusal = value to nowMs()
+        return refuse(refusal, sound = !repeat)
+    }
+
+    private fun isRepeatOfLocalRefusal(value: String): Boolean {
+        val (refused, at) = lastLocalRefusal ?: return false
+        return refused == value && nowMs() - at < REPEAT_WINDOW_MS
+    }
+
+    private fun forgetScans() {
+        lastScan = null
+        lastLocalRefusal = null
+    }
+
+    /** Requests a scan sent, as opposed to reads, recovery and the Complete cage buttons. */
+    private fun isScan(pending: PendingRequest): Boolean =
+        pending.intent == RequestIntent.SELECT || pending.intent == RequestIntent.ALLOCATE
+
+    private fun failIf(scan: Boolean): List<Effect> = if (scan) listOf(Effect.ErrorFeedback) else emptyList()
 
     private fun isArmed(screen: CageScreen.Loading): Boolean {
         val until = screen.armExpiresAtMs ?: return false
@@ -506,9 +556,10 @@ class CageWorkflow(
         return listOf(Effect.Publish(request))
     }
 
-    private fun refuse(refusal: Refusal): List<Effect> {
+    /** Shows [refusal]; it sounds fail when it answers a scan ([sound]), never for a button tap. */
+    private fun refuse(refusal: Refusal, sound: Boolean = true): List<Effect> {
         state = state.copy(refusal = refusal)
-        return listOf(Effect.ErrorFeedback)
+        return failIf(sound)
     }
 
     /** Runs a public call and re-derives `sending` from the outbox afterwards. */
@@ -538,6 +589,8 @@ class CageWorkflow(
         val SENDING_NOTICES = setOf(WAIT_SENDING, STATION_PAUSED, STATION_BUSY)
         const val RECOVERY_FAILED = "Couldn't confirm the last scan. Rescan the cage tag."
         const val CLOCK_WINDOW_MS = 300_000L
+        /** Suite rule S3: a repeat of a value refused here within this window is the same scan. */
+        const val REPEAT_WINDOW_MS = 1_500L
         val CLOCK_REFUSAL = Refusal(
             "Check the handheld's clock",
             "The handheld's time is wrong. Ask a supervisor to correct it, then scan again.",
