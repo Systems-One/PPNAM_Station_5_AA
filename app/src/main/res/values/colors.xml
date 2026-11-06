@@ -25,6 +25,9 @@
     <color name="station_field">#FFA85F14</color>
     <color name="brand_field">@color/station_field</color>
     <color name="brand_tint">#E8C89D</color>
+    <!-- Small text ON the amber fill. brand_tint there is 3.1:1 and text_primary 4.4:1; white is
+         4.9:1 (skill-run critique 2026-11-06, P2-6). -->
+    <color name="on_brand">#FFFFFF</color>
 
     <!-- Semantic / Accent Colours -->
     <color name="primary_action">@color/brand_field</color>

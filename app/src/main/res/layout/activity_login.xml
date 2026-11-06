@@ -82,13 +82,16 @@
                     android:padding="24dp">
 
                     <!-- Above the fields (UI audit group (a) sub-cause 4): laid out below them it
-                         landed exactly under the keyboard's top edge. -->
+                         landed exactly under the keyboard's top edge. C3 red panel. -->
                     <TextView
                         android:id="@+id/tvLoginError"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="16dp"
-                        android:textColor="@color/danger"
+                        android:background="@drawable/bg_error_panel"
+                        android:paddingHorizontal="14dp"
+                        android:paddingVertical="10dp"
+                        android:textColor="@color/text_primary"
                         android:textSize="15sp"
                         android:visibility="gone"
                         tools:text="Incorrect username or password."
@@ -96,7 +99,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilUsername"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                        style="@style/Widget.SysOneScanner.TextInputLayout.ExposedDropdownMenu"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="@string/hint_username"
@@ -117,7 +120,7 @@
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilPassword"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.SysOneScanner.TextInputLayout"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
@@ -152,13 +155,15 @@
                             app:backgroundTint="@color/primary_action"
                             app:cornerRadius="14dp" />
 
+                        <!-- Same colour as the button label it replaces: the dark ring was a thin
+                             3.9:1 line on the amber (skill-run critique 2026-11-06, P3-13). -->
                         <ProgressBar
                             android:id="@+id/progressLogin"
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
                             android:layout_gravity="center"
                             android:elevation="8dp"
-                            android:indeterminateTint="@color/window_background"
+                            android:indeterminateTint="@color/text_primary"
                             android:visibility="gone" />
                     </FrameLayout>
 

@@ -64,7 +64,7 @@
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.1"
                     android:text="@string/cage_loading_label"
-                    android:textColor="@color/brand_tint"
+                    android:textColor="@color/on_brand"
                     android:textSize="13sp"
                     android:textStyle="bold" />
 
@@ -81,7 +81,7 @@
                     android:id="@+id/tvBannerJob"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/text_primary"
+                    android:textColor="@color/on_brand"
                     android:textSize="15sp"
                     tools:text="Job 510019399 · OUTER-001" />
             </LinearLayout>
@@ -272,6 +272,7 @@
             android:text="@string/cage_complete_cage"
             android:textColor="@color/brand_tint"
             android:textSize="16sp"
+            app:cornerRadius="14dp"
             app:strokeColor="@color/station_field"
             app:strokeWidth="2dp" />
 
@@ -353,6 +354,7 @@
                     android:layout_marginTop="8dp"
                     android:text="@string/cage_refresh"
                     android:textColor="@color/text_primary"
+                    app:cornerRadius="14dp"
                     app:strokeColor="@color/success" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

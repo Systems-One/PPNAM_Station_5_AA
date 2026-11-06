@@ -220,25 +220,32 @@
                         android:textSize="15sp" />
 
                     <!-- Error / lockout text sits ABOVE the field (UI audit S5-04): below it,
-                         it landed exactly under the numeric keypad's top edge. -->
+                         it landed exactly under the numeric keypad's top edge. Both are C3 red
+                         panels (skill-run critique 2026-11-06, P2-3). -->
                     <TextView
                         android:id="@+id/tvPinError"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
-                        android:textColor="@color/danger"
-                        android:textSize="13sp"
+                        android:background="@drawable/bg_error_panel"
+                        android:paddingHorizontal="14dp"
+                        android:paddingVertical="10dp"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp"
                         android:visibility="gone"
                         tools:text="Incorrect PIN. 4 attempts left before lockout."
                         tools:visibility="visible" />
 
                     <TextView
                         android:id="@+id/tvPinLockout"
-                        android:layout_width="wrap_content"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
-                        android:textColor="@color/danger"
-                        android:textSize="13sp"
+                        android:background="@drawable/bg_error_panel"
+                        android:paddingHorizontal="14dp"
+                        android:paddingVertical="10dp"
+                        android:textColor="@color/text_primary"
+                        android:textSize="15sp"
                         android:visibility="gone" />
 
                     <LinearLayout
@@ -250,7 +257,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilPin"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.SysOneScanner.TextInputLayout"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -316,7 +323,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilBrokerHost"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.SysOneScanner.TextInputLayout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
@@ -338,7 +345,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilBrokerPort"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.SysOneScanner.TextInputLayout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
@@ -380,7 +387,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilBrokerUsername"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.SysOneScanner.TextInputLayout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
@@ -402,7 +409,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilBrokerPassword"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.SysOneScanner.TextInputLayout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
@@ -435,7 +442,7 @@
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/tilAutoLogout"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            style="@style/Widget.SysOneScanner.TextInputLayout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"

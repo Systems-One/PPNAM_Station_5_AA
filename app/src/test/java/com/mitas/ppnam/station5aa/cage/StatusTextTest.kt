@@ -39,4 +39,15 @@ class StatusTextTest {
         assertNull(StatusText.completedTime(""))
         assertNull(StatusText.completedTime("not a time"))
     }
+
+    // Skill-run critique 2026-11-06, P2-8: a receipt/print problem sat in plain white on the green
+    // "completed" card, so it read as part of the success.
+    @Test fun needsAttentionOnlyForProblemStates() {
+        for (s in listOf("Failed", "OutcomeUnknown", "Reconcile", "NeedsReview")) {
+            assertEquals(s, true, StatusText.needsAttention(s))
+        }
+        for (s in listOf("Not queued", "Pending", "Processing", "Succeeded", "WaitingForGrv", "Whatever")) {
+            assertEquals(s, false, StatusText.needsAttention(s))
+        }
+    }
 }

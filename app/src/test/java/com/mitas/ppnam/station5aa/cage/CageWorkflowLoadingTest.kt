@@ -487,7 +487,8 @@ class CageWorkflowLoadingTest : CageWorkflowFixture() {
         val before = wf.state
         val pending = outbox.load()
         assertTrue(wf.onResponse(rejected("processing_paused")).isEmpty())
-        assertEquals(before, wf.state)
+        // Only the "paused — retrying" notice changes (skill-run critique 2026-11-06, P2-7).
+        assertEquals(before.copy(notice = Notice("Station 5 is paused — retrying…", Notice.Tone.WARNING)), wf.state)
         assertSame(pending, outbox.load())
     }
 
