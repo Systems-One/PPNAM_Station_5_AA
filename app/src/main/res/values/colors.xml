@@ -12,6 +12,8 @@
     <!-- Border Colours -->
     <color name="border_primary">#25384C</color>
     <color name="border_soft">#1C2C3E</color>
+    <!-- Text-field outline at rest (suite consistency C1): ~3.9:1 on card_background. -->
+    <color name="field_stroke">#7A8FA5</color>
 
     <!-- Text Colours -->
     <color name="text_primary">#EDF4FB</color>

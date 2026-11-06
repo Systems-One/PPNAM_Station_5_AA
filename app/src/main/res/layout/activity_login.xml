@@ -100,7 +100,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="@string/hint_username"
-                        app:boxStrokeColor="@color/outline_dark"
+                        app:boxStrokeColor="@color/text_field_stroke"
                         app:endIconTint="@color/text_muted"
                         app:hintTextColor="@color/text_secondary_dark">
 
@@ -122,7 +122,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:hint="@string/hint_password"
-                        app:boxStrokeColor="@color/outline_dark"
+                        app:boxStrokeColor="@color/text_field_stroke"
                         app:endIconMode="password_toggle"
                         app:endIconTint="@color/text_muted"
                         app:hintTextColor="@color/text_secondary_dark">

@@ -120,7 +120,7 @@
     <string name="diag_station_offline">Offline</string>
     <string name="diag_station_unknown">Unknown</string>
 
-    <string name="station_offline_title">Station offline — don\'t load Packs</string>
+    <string name="station_offline_title">Station 5 offline — don\'t load Packs</string>
     <string name="station_offline_message">Waiting for the Station 5 desktop…</string>
 
     <!-- Forced sign-out reason shown on Login (UI audit group (j)) -->
