@@ -408,7 +408,8 @@
                             android:hint="@string/hint_broker_password"
                             app:boxStrokeColor="@color/outline_dark"
                             app:hintTextColor="@color/text_secondary_dark"
-                            app:passwordToggleEnabled="true">
+                            app:endIconMode="password_toggle"
+                            app:endIconTint="@color/text_muted">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/etBrokerPassword"

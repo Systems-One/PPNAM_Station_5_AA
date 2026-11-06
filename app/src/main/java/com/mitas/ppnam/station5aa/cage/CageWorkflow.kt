@@ -115,6 +115,9 @@ class CageWorkflow(
         val pending = outbox.load() ?: return@step emptyList()
         if (json.optString("inResponseToMessageId") != pending.messageId) return@step emptyList()
 
+        // "Sending…" ends with this reply, so its "wait" warning would now contradict the screen.
+        if (state.notice?.text == WAIT_SENDING) state = state.copy(notice = null)
+
         if (!json.optBoolean("accepted", false)) return@step onRejected(pending, json)
 
         outbox.clear()

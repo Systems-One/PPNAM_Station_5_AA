@@ -185,13 +185,16 @@ class MainActivity : SessionActivity() {
 
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN)
 
+        // The layout's own padding is the screen gutter: add the insets to it, never replace it,
+        // or every card runs edge to edge (visual critique 2026-11-06, P1-1).
+        val base = binding.main.let { intArrayOf(it.paddingLeft, it.paddingTop, it.paddingRight, it.paddingBottom) }
         ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
             // systemBars() alone would defeat the manifest's adjustResize if a field is ever
             // added here (UI audit group (a) sub-cause 2) — pad for the keyboard too.
             val bars = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime()
             )
-            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            v.setPadding(base[0] + bars.left, base[1] + bars.top, base[2] + bars.right, base[3] + bars.bottom)
             insets
         }
 

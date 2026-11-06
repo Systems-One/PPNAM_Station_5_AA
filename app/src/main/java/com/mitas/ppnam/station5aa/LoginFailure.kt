@@ -18,6 +18,8 @@ class StationRejection(val errorCode: String, message: String) : Exception(messa
  */
 object LoginFailure {
     private val CREDENTIAL_CODES = setOf(
+        // MQTT_CONTRACT.md §7 sends login_failed / invalid_proof for a wrong username or password.
+        "login_failed", "invalid_proof",
         "authentication_failed", "invalid_credentials", "scram_proof_invalid",
     )
 
