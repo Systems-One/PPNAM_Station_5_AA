@@ -92,7 +92,8 @@
             android:layout_weight="1"
             android:text="@string/cage_keep_loading"
             android:textColor="@color/text_primary"
-            app:strokeColor="@color/border_primary" />
+            app:cornerRadius="14dp"
+            app:strokeColor="@color/field_stroke" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCompleteCage"
@@ -102,6 +103,7 @@
             android:layout_weight="1"
             android:backgroundTint="@color/station_field"
             android:text="@string/cage_complete_cage"
-            android:textColor="@color/text_primary" />
+            android:textColor="@color/text_primary"
+            app:cornerRadius="14dp" />
     </LinearLayout>
 </LinearLayout>

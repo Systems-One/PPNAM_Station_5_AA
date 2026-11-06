@@ -116,7 +116,7 @@ class CageWorkflow(
         if (json.optString("inResponseToMessageId") != pending.messageId) return@step emptyList()
 
         // "Sending…" ends with this reply, so its "wait" warning would now contradict the screen.
-        if (state.notice?.text == WAIT_SENDING) state = state.copy(notice = null)
+        if (state.notice?.text in SENDING_NOTICES) state = state.copy(notice = null)
 
         if (!json.optBoolean("accepted", false)) return@step onRejected(pending, json)
 
@@ -230,7 +230,12 @@ class CageWorkflow(
     private fun onRejected(pending: PendingRequest, json: JSONObject): List<Effect> {
         val code = json.optString("errorCode")
         val reason = json.optString("reason")
-        if (code in RefusalCatalog.TRANSIENT) return emptyList() // keep the outbox; onRetryTick resends
+        if (code in RefusalCatalog.TRANSIENT) {
+            // Keep the outbox; onRetryTick resends. Say why "Sending…" goes on.
+            val text = if (code == "processing_paused") STATION_PAUSED else STATION_BUSY
+            state = state.copy(notice = Notice(text, Notice.Tone.WARNING))
+            return emptyList()
+        }
         outbox.clear()
         if (code == LOGIN_REQUIRED) {
             sessionId = null
@@ -526,6 +531,11 @@ class CageWorkflow(
         const val CONFIRM_COMPLETION = "confirm_completion"
         const val SUMMARY_EXPIRED = "Summary expired — tap Complete cage again"
         const val WAIT_SENDING = "Wait for Sending… to finish, then scan again."
+        // Why "Sending…" keeps going after a transient refusal (skill-run critique 2026-11-06, P2-7).
+        const val STATION_PAUSED = "Station 5 is paused — retrying…"
+        const val STATION_BUSY = "Station 5 is busy — retrying…"
+        /** Notices about the request in flight: stale once that request is answered. */
+        val SENDING_NOTICES = setOf(WAIT_SENDING, STATION_PAUSED, STATION_BUSY)
         const val RECOVERY_FAILED = "Couldn't confirm the last scan. Rescan the cage tag."
         const val CLOCK_WINDOW_MS = 300_000L
         val CLOCK_REFUSAL = Refusal(

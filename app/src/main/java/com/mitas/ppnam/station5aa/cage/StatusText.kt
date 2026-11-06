@@ -32,6 +32,14 @@ object StatusText {
         else -> state
     }
 
+    /**
+     * A GRV or print state the operator must act on ("check the desktop"): shown in the warning
+     * colour, not the card's white, so it doesn't read as part of the green "completed"
+     * (skill-run critique 2026-11-06, P2-8).
+     */
+    fun needsAttention(state: String): Boolean =
+        state in setOf("Failed", "OutcomeUnknown", "Reconcile", "NeedsReview")
+
     fun print(state: String): String = when (state) {
         "Not queued" -> "Not printed yet"
         "Processing" -> "Printing"

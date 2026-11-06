@@ -320,10 +320,15 @@ class SettingsActivity : SessionActivity() {
             ApplyStatus.HIDDEN -> "" to R.color.text_muted
             ApplyStatus.TESTING -> getString(R.string.settings_testing) to R.color.text_muted
             ApplyStatus.SUCCESS -> getString(R.string.settings_apply_success) to R.color.success
-            ApplyStatus.FAILED -> (message ?: "") to R.color.danger
+            ApplyStatus.FAILED -> (message ?: "") to R.color.text_primary
         }
         binding.tvApplyStatus.text = text
         binding.tvApplyStatus.setTextColor(getColor(colorRes))
+        // A failure is a C3 red panel, not a bare red line (skill-run critique 2026-11-06, P2-3).
+        val failed = status == ApplyStatus.FAILED
+        val pad = if (failed) (12 * resources.displayMetrics.density).toInt() else 0
+        binding.layoutApplyStatus.setBackgroundResource(if (failed) R.drawable.bg_error_panel else 0)
+        binding.layoutApplyStatus.setPadding(pad, pad, pad, pad)
         if (status != ApplyStatus.HIDDEN) binding.btnSaveSettings.post { binding.btnSaveSettings.scrollIntoView() }
     }
 

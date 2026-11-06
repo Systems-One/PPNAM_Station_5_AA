@@ -5,12 +5,16 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.LayoutInflater
+import android.view.TouchDelegate
+import android.view.View
 import android.view.WindowManager
 import androidx.activity.SystemBarStyle
 import androidx.activity.addCallback
@@ -221,6 +225,16 @@ class MainActivity : SessionActivity() {
                 else session.operatorName
         }
         binding.layoutOperator.setOnClickListener { showLogoutDialog() }
+        // The row draws 24dp tall; grow its touch area to at least 48dp without changing the
+        // header card's layout (suite C2) (skill-run critique 2026-11-06, P2-9).
+        val operatorRow = binding.layoutOperator
+        (operatorRow.parent as View).post {
+            val r = Rect()
+            operatorRow.getHitRect(r)
+            val grow = maxOf(0, ((48 * resources.displayMetrics.density).toInt() - r.height() + 1) / 2)
+            r.inset(0, -grow)
+            (operatorRow.parent as View).touchDelegate = TouchDelegate(r, operatorRow)
+        }
 
         // allowedTabs gating is fail-closed and display-only (the station re-checks server-side).
         val cageAllowed = OperatorSessionHolder.session?.canShow(StationTab.CAGE_LOADING) == true
@@ -324,6 +338,12 @@ class MainActivity : SessionActivity() {
             }
             v.tvGrv.text = getString(R.string.cage_sap_receipt, StatusText.grv(completed.grvState))
             v.tvPrint.text = getString(R.string.cage_manifest_print, StatusText.print(completed.printState))
+            // Problem states in warning amber (6.1:1 on light_green), not the card's success white.
+            fun stateColor(state: String) = ContextCompat.getColor(
+                this, if (StatusText.needsAttention(state)) R.color.warning else R.color.text_primary,
+            )
+            v.tvGrv.setTextColor(stateColor(completed.grvState))
+            v.tvPrint.setTextColor(stateColor(completed.printState))
             v.btnRefresh.isEnabled = !s.sending
         }
 
@@ -382,7 +402,12 @@ class MainActivity : SessionActivity() {
             Notice.Tone.SUCCESS -> R.color.light_green to R.color.success
             Notice.Tone.WARNING -> R.color.light_amber to R.color.warning
         }
-        tv.setBackgroundColor(ContextCompat.getColor(this, bg))
+        // Rounded like the cards around it; a square full-width strip read as a stray band
+        // (skill-run critique 2026-11-06, P3-12).
+        tv.background = GradientDrawable().apply {
+            cornerRadius = 12f * resources.displayMetrics.density
+            setColor(ContextCompat.getColor(this@MainActivity, bg))
+        }
         tv.setTextColor(ContextCompat.getColor(this, fg))
     }
 

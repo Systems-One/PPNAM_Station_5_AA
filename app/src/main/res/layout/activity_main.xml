@@ -46,7 +46,8 @@
 
             <!-- Operator control, mirroring Station 2's top-bar operator row: the logout icon is
                  the affordance — without it this reads as a plain caption, and it is one of the
-                 two routes to switching operator (Settings offers the other). -->
+                 two routes to switching operator (Settings offers the other). MainActivity widens its
+                 touch area to 48dp: it was a 24dp-tall target (skill-run critique 2026-11-06, P2-9). -->
             <LinearLayout
                 android:id="@+id/layoutOperator"
                 android:layout_width="0dp"
@@ -239,7 +240,8 @@
             android:backgroundTint="@color/danger_strong"
             android:text="@string/cage_got_it"
             android:textColor="@color/text_primary"
-            android:textSize="18sp" />
+            android:textSize="18sp"
+            app:cornerRadius="14dp" />
     </LinearLayout>
 
     <!-- Station Offline Overlay -->

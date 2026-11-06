@@ -21,24 +21,28 @@ import androidx.dynamicanimation.animation.SpringForce
 fun View.applyPressScaleFeedback(pressedScale: Float = 0.96f) {
     if (!ValueAnimator.areAnimatorsEnabled()) return
 
-    fun springTo(property: FloatPropertyCompat<View>, target: Float) {
-        SpringAnimation(this, property, target).apply {
-            spring = SpringForce(target).apply {
-                dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY
-                stiffness = SpringForce.STIFFNESS_HIGH
-            }
-        }.start()
+    // One spring per axis, re-targeted. A new SpringAnimation per touch event left the press-down
+    // spring still running when the release spring started; both drove the same property and the
+    // one that settled last won, so a quick tap often left the button stuck at 96% (Log In and
+    // Unlock drawn narrower than their fields; skill-run critique 2026-11-06, P2-1).
+    fun spring(property: FloatPropertyCompat<View>) = SpringAnimation(this, property, 1f).apply {
+        spring = SpringForce(1f).apply {
+            dampingRatio = SpringForce.DAMPING_RATIO_NO_BOUNCY
+            stiffness = SpringForce.STIFFNESS_HIGH
+        }
     }
+    val springX = spring(DynamicAnimation.SCALE_X)
+    val springY = spring(DynamicAnimation.SCALE_Y)
 
     setOnTouchListener { v, event ->
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                springTo(DynamicAnimation.SCALE_X, pressedScale)
-                springTo(DynamicAnimation.SCALE_Y, pressedScale)
+                springX.animateToFinalPosition(pressedScale)
+                springY.animateToFinalPosition(pressedScale)
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                springTo(DynamicAnimation.SCALE_X, 1f)
-                springTo(DynamicAnimation.SCALE_Y, 1f)
+                springX.animateToFinalPosition(1f)
+                springY.animateToFinalPosition(1f)
             }
         }
         // Let the view's normal click/ripple handling still run.
