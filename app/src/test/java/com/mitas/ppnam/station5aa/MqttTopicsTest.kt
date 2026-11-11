@@ -6,15 +6,23 @@ import org.junit.Test
 
 /**
  * Per-station namespace per MQTT_CONTRACT §1: all Station 5 traffic nests under
- * PPNAM/station_5/...; the station publishes raw online/offline on PPNAM/station_5/status.
+ * PPNAM/station_5/...; the station publishes raw online/offline on PPNAM/station_5 itself.
  *
  * This app serves Station 5 only, so the station segment is fixed rather than a parameter.
  */
 class MqttTopicsTest {
 
     @Test
-    fun `station status is the status subtopic`() {
-        assertEquals("PPNAM/station_5/status", MqttTopics.stationStatus())
+    fun `station status is the station base node`() {
+        assertEquals("PPNAM/station_5", MqttTopics.stationStatus())
+    }
+
+    @Test
+    fun `the legacy status subtopic is still read as station status`() {
+        assertEquals("PPNAM/station_5/status", MqttTopics.legacyStationStatus())
+        assertEquals(true, MqttTopics.isStationStatus("PPNAM/station_5"))
+        assertEquals(true, MqttTopics.isStationStatus("PPNAM/station_5/status"))
+        assertEquals(false, MqttTopics.isStationStatus("PPNAM/station_5/scanner_1"))
     }
 
     @Test

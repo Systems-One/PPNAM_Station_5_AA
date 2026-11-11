@@ -4,7 +4,7 @@ package com.mitas.ppnam.station5aa
  * Per-station namespace topic structure per MQTT_CONTRACT §1
  * (`../PPNAM-Station-5/MQTT_CONTRACT.md`, 2 Nov 2026):
  *
- *   PPNAM/station_5/status                     station status (raw online/offline text)
+ *   PPNAM/station_5                            station presence (raw online/offline text, retained)
  *   PPNAM/station_5/{deviceId}                 device presence (retained, LWT)
  *   PPNAM/station_5/{deviceId}/req/{suffix}    request  FROM device TO the station
  *   PPNAM/station_5/{deviceId}/res/{suffix}    response FROM station TO device
@@ -15,8 +15,16 @@ object MqttTopics {
 
     private const val STATION_BASE = "PPNAM/station_5"
 
-    /** The station's status topic — raw `online` / `offline` text. */
-    fun stationStatus(): String = "$STATION_BASE/status"
+    /** The station's presence — raw `online` / `offline` text on the station base node itself. */
+    fun stationStatus(): String = STATION_BASE
+
+    /**
+     * Where Station 5 desktop builds before 2026-11-11 published their presence. Still read so a
+     * scanner updated ahead of the station PC does not show the station offline.
+     */
+    fun legacyStationStatus(): String = "$STATION_BASE/status"
+
+    fun isStationStatus(topic: String): Boolean = topic == stationStatus() || topic == legacyStationStatus()
 
     /** This scanner's base node — carries its retained presence payload and Last Will. */
     fun devicePresence(deviceId: String): String {
