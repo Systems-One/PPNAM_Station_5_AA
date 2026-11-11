@@ -206,6 +206,7 @@ class MqttManager private constructor(context: Context) {
                     val ownId = DeviceIdentity.deviceId(appContext)
                     subscribeInternal(MqttTopics.deviceResponseWildcard(ownId))
                     subscribeInternal(MqttTopics.stationStatus())
+                    subscribeInternal(MqttTopics.legacyStationStatus(), optional = true)
                     subscribeInternal(MqttTopics.devicePresence(ownId), optional = true)
                     
                     notifyListeners(true)
@@ -245,7 +246,7 @@ class MqttManager private constructor(context: Context) {
                 val topic = publish.topic.toString()
                 
                 // Internal filtering for Station Status — raw text on the station status topic
-                if (topic == MqttTopics.stationStatus()) {
+                if (MqttTopics.isStationStatus(topic)) {
                     val online = parseStationStatus(String(publish.payloadAsBytes, Charsets.UTF_8))
                     if (online != null) setStationOnline(online)
                 }

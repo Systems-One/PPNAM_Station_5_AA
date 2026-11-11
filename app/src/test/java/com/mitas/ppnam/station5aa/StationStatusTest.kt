@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Station status is raw online/offline text on PPNAM/station_5/status (MQTT_CONTRACT §1). */
+/** Station status is raw online/offline text on PPNAM/station_5 (MQTT_CONTRACT §1). */
 class StationStatusTest {
 
     @Test
